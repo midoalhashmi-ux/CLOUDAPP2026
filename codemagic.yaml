@@ -1,0 +1,36 @@
+workflows:
+  android-workflow:
+    name: بناء أندرويد - تطبيق البث الرياضي
+    max_build_duration: 60
+    environment:
+      flutter: stable
+      vars:
+        PACKAGE_NAME: "com.midoalhashmi.sportsstream2026"
+    scripts:
+      - name: توليد هيكل أندرويد إن لم يكن موجوداً
+        script: |
+          if [ ! -d "android" ] || [ ! -f "android/app/build.gradle" ]; then
+            echo "لا يوجد مجلد android كامل، يتم توليده الآن..."
+            mv android /tmp/android_backup 2>/dev/null || true
+            flutter create --platforms=android --org com.midoalhashmi .
+            # استرجاع google-services.json الذي رفعناه إن وُجد نسخة محفوظة
+            if [ -f "/tmp/android_backup/app/google-services.json" ]; then
+              cp /tmp/android_backup/app/google-services.json android/app/google-services.json
+            fi
+          fi
+      - name: تفعيل إضافة Google Services في Gradle
+        script: |
+          GRADLE_FILE="android/app/build.gradle"
+          if ! grep -q "com.google.gms.google-services" "$GRADLE_FILE"; then
+            echo "apply plugin: 'com.google.gms.google-services'" >> "$GRADLE_FILE"
+          fi
+          PROJECT_GRADLE="android/build.gradle"
+          if ! grep -q "com.google.gms:google-services" "$PROJECT_GRADLE"; then
+            sed -i "s/dependencies {/dependencies {\n        classpath 'com.google.gms:google-services:4.4.2'/" "$PROJECT_GRADLE"
+          fi
+      - name: جلب الحزم
+        script: flutter pub get
+      - name: بناء APK
+        script: flutter build apk --release
+    artifacts:
+      - build/**/outputs/**/*.apk
