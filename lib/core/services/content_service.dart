@@ -13,6 +13,20 @@ class ContentService {
             .toList());
   }
 
+  static Stream<List<CategoryModel>> watchRootCategories() {
+    return watchCategories().map(
+      (categories) => categories.where((category) => category.parentId == null).toList(),
+    );
+  }
+
+  static Stream<List<CategoryModel>> watchChildCategories(String parentId) {
+    return watchCategories().map(
+      (categories) => categories
+          .where((category) => category.parentId == parentId)
+          .toList(),
+    );
+  }
+
   static Stream<List<ChannelModel>> watchChannelsForCategory(
       String categoryId) {
     return FirebaseFirestore.instance

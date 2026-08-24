@@ -97,7 +97,7 @@ class HomeScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('الرئيسية')),
       body: StreamBuilder(
-        stream: ContentService.watchCategories(),
+        stream: ContentService.watchRootCategories(),
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());

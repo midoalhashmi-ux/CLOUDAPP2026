@@ -12,24 +12,99 @@ class ChannelsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(category.title)),
-      body: StreamBuilder<List<ChannelModel>>(
-        stream: ContentService.watchChannelsForCategory(category.id),
+      body: StreamBuilder<List<CategoryModel>>(
+        stream: ContentService.watchChildCategories(category.id),
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
-          final channels = snapshot.data!;
-          if (channels.isEmpty) {
-            return const Center(child: Text('لا توجد قنوات بعد في هذا القسم'));
+          final childCategories = snapshot.data!;
+          if (childCategories.isNotEmpty) {
+            return GridView.builder(
+              padding: const EdgeInsets.all(12),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                mainAxisSpacing: 12,
+                crossAxisSpacing: 12,
+                childAspectRatio: 1.1,
+              ),
+              itemCount: childCategories.length,
+              itemBuilder: (context, index) {
+                final child = childCategories[index];
+                return Card(
+                  clipBehavior: Clip.antiAlias,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(18)),
+                  child: InkWell(
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => ChannelsScreen(category: child),
+                      ),
+                    ),
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        if (child.iconUrl != null && child.iconUrl!.isNotEmpty)
+                          Image.network(child.iconUrl!, fit: BoxFit.cover)
+                        else
+                          Container(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .primary
+                                .withOpacity(0.15),
+                          ),
+                        Positioned(
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          child: Container(
+                            padding: const EdgeInsets.all(10),
+                            color: Colors.black54,
+                            child: Text(
+                              child.title,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            );
           }
-          return ListView.builder(
-            padding: const EdgeInsets.all(12),
-            itemCount: channels.length,
-            itemBuilder: (context, index) =>
-                _ChannelCard(channel: channels[index]),
-          );
+          return _ChannelsList(categoryId: category.id);
         },
       ),
+    );
+  }
+}
+
+class _ChannelsList extends StatelessWidget {
+  final String categoryId;
+  const _ChannelsList({required this.categoryId});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<List<ChannelModel>>(
+      stream: ContentService.watchChannelsForCategory(categoryId),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final channels = snapshot.data!;
+        if (channels.isEmpty) {
+          return const Center(child: Text('لا توجد قنوات بعد في هذا القسم'));
+        }
+        return ListView.builder(
+          padding: const EdgeInsets.all(12),
+          itemCount: channels.length,
+          itemBuilder: (context, index) => _ChannelCard(channel: channels[index]),
+        );
+      },
     );
   }
 }

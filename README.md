@@ -45,6 +45,10 @@
 - ✅ شاشة المشاهدة (مشغل HLS عبر `video_player` + `chewie`) مع معالجة حالة التحميل والخطأ
 - ⚠️ شاشة المشاهدة جاهزة لكن تعتمد على `SecureStreamService` الذي يحتاج تفعيل Cloud Function فعلية (خطوة 2) — حالياً ستظهر رسالة "تعذر جلب رابط البث" وهذا متوقع وطبيعي إلى أن تُفعّل الخطوة القادمة
 - ✅ Firebase مربوط فعلياً (مشروع `sports-stream-app-36a7a`) والبناء يعمل على Codemagic
+- ✅ لوحة تحكم ويب منشورة: تسجيل دخول المالك وإدارة الأقسام المتدرجة (رئيسي/فرعي)
+- ✅ لوحة التحكم: إضافة وتعديل وحذف الأقسام بشكل آمن، وإدارة القنوات (إضافة/تعديل/حذف)
+- ✅ لوحة التحكم: تحكم أولي بألوان التطبيق الديناميكية
+- ⚠️ يلزم رفع حزمة تحديث Flutter الخاصة بالأقسام الفرعية عند بناء نسخة التطبيق التالية
 
 ---
 
@@ -56,8 +60,8 @@
 
 **المرحلة 1 — التطبيق الأساسي + لوحة التحكم (الأولوية الحالية):**
 1. ~~شاشة قنوات القسم + شاشة المشاهدة~~ ✅ **مكتملة**
-2. **لوحة التحكم الويب — إدارة الأقسام والقنوات (CRUD)** **(الخطوة القادمة)**
-3. **لوحة التحكم — تحكم بالثيم الديناميكي (ألوان/خلفية)**
+2. ~~لوحة التحكم الويب — إدارة الأقسام والقنوات (CRUD)~~ ✅ **مكتملة**
+3. **لوحة التحكم — تحكم بالثيم الديناميكي (ألوان/خلفية)** **(الألوان مكتملة؛ الخلفية لاحقاً)**
 4. **لوحة التحكم — تحكم بأعلام الميزات (Feature Flags)**
 5. مراجعة شاملة: التطبيق ولوحة التحكم يعملون معاً بدون أخطاء
 
@@ -79,7 +83,7 @@
 ```
 settings/theme        → { primaryColor, backgroundColor, backgroundImageUrl }
 settings/features     → { matchAlerts, liveScoreTab, backgroundAudio, liveChat, adsEnabled, maintenanceMode, maintenanceMessage }
-categories/{id}       → { title, order, iconUrl, isPremium }
+categories/{id}       → { title, order, iconUrl, parentId, isPremium }
 channels/{id}         → { categoryId, title, subtitle, status, startTime, logoUrl, viewCount }
 subscriptions/{code}  → { active, createdAt, expiresAt, unlockedCategoryIds }
 ```
