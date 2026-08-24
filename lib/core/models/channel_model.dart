@@ -6,6 +6,7 @@ class ChannelModel {
   final String status;
   final DateTime? startTime;
   final String? logoUrl;
+  final String? playerChannelKey;
 
   ChannelModel({
     required this.id,
@@ -15,6 +16,7 @@ class ChannelModel {
     required this.status,
     this.startTime,
     this.logoUrl,
+    this.playerChannelKey,
   });
 
   factory ChannelModel.fromMap(String id, Map<String, dynamic> map) {
@@ -28,6 +30,7 @@ class ChannelModel {
           ? DateTime.tryParse(map['startTime'])
           : null,
       logoUrl: map['logoUrl'],
+      playerChannelKey: map['playerChannelKey'],
     );
   }
 }

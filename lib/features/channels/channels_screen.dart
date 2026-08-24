@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../core/models/category_model.dart';
 import '../../core/models/channel_model.dart';
 import '../../core/services/content_service.dart';
-import '../watch/watch_screen.dart';
+import '../../core/services/player_launcher.dart';
 
 class ChannelsScreen extends StatelessWidget {
   final CategoryModel category;
@@ -143,13 +143,7 @@ class _ChannelCard extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: InkWell(
-        onTap: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => WatchScreen(channel: channel),
-            ),
-          );
-        },
+        onTap: () => PlayerLauncher.openChannel(context, channel.id),
         child: Padding(
           padding: const EdgeInsets.all(12),
           child: Row(
