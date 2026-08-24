@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'theme/app_theme.dart';
@@ -10,21 +9,55 @@ import 'features/channels/channels_screen.dart';
 import 'firebase_options.dart';
 
 Future<void> main() async {
-  // نلتقط أي خطأ يصير وقت الإقلاع ونعرضه كنص على الشاشة بدل ما يقفل التطبيق،
-  // هذا مؤقت للتشخيص فقط وسنزيله بعد التأكد أن كل شيء شغّال.
-  runZonedGuarded(() async {
-    WidgetsFlutterBinding.ensureInitialized();
+  WidgetsFlutterBinding.ensureInitialized();
+  // نعرض واجهة أولاً. بهذه الطريقة لا يخرج التطبيق بصمت حتى لو تعذر Firebase.
+  runApp(const _BootApp());
+}
+
+class _BootApp extends StatefulWidget {
+  const _BootApp();
+
+  @override
+  State<_BootApp> createState() => _BootAppState();
+}
+
+class _BootAppState extends State<_BootApp> {
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _start();
+  }
+
+  Future<void> _start() async {
     try {
       await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform,
       );
-      runApp(const SportsApp());
-    } catch (e, stack) {
-      runApp(_StartupErrorApp(error: e.toString(), stack: stack.toString()));
+      if (mounted) setState(() {});
+    } catch (error, stack) {
+      if (mounted) setState(() => _error = '$error\n\n$stack');
     }
-  }, (error, stack) {
-    runApp(_StartupErrorApp(error: error.toString(), stack: stack.toString()));
-  });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_error != null) return _StartupErrorApp(error: _error!, stack: '');
+    // بعد نجاح Firebase، إعادة البناء تعرض التطبيق الرئيسي.
+    try {
+      Firebase.app();
+      return const SportsApp();
+    } catch (_) {
+      return const MaterialApp(
+        debugShowCheckedModeBanner: false,
+        home: Scaffold(
+          backgroundColor: Colors.black,
+          body: Center(child: CircularProgressIndicator()),
+        ),
+      );
+    }
+  }
 }
 
 class _StartupErrorApp extends StatelessWidget {
