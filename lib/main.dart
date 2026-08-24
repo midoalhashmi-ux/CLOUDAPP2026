@@ -23,14 +23,10 @@ class _BootApp extends StatefulWidget {
 
 class _BootAppState extends State<_BootApp> {
   String? _error;
-
-  @override
-  void initState() {
-    super.initState();
-    _start();
-  }
+  bool _starting = false;
 
   Future<void> _start() async {
+    setState(() => _starting = true);
     try {
       await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform,
@@ -44,16 +40,47 @@ class _BootAppState extends State<_BootApp> {
   @override
   Widget build(BuildContext context) {
     if (_error != null) return _StartupErrorApp(error: _error!, stack: '');
-    // بعد نجاح Firebase، إعادة البناء تعرض التطبيق الرئيسي.
     try {
       Firebase.app();
       return const SportsApp();
     } catch (_) {
-      return const MaterialApp(
+      return MaterialApp(
         debugShowCheckedModeBanner: false,
         home: Scaffold(
           backgroundColor: Colors.black,
-          body: Center(child: CircularProgressIndicator()),
+          body: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(28),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.sports_soccer, color: Colors.white, size: 54),
+                  const SizedBox(height: 18),
+                  const Text(
+                    'تطبيق البث الرياضي',
+                    style: TextStyle(color: Colors.white, fontSize: 23),
+                  ),
+                  const SizedBox(height: 10),
+                  const Text(
+                    'اضغط للاتصال بخدمة المحتوى.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.white70),
+                  ),
+                  const SizedBox(height: 24),
+                  FilledButton(
+                    onPressed: _starting ? null : _start,
+                    child: _starting
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text('فتح التطبيق'),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
       );
     }
