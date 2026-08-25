@@ -27,6 +27,16 @@ exports.getStreamUrl = onCall(async (request) => {
     throw new HttpsError("permission-denied", "هذه القناة موقوفة مؤقتاً.");
   }
 
+  // احتياط: لو القناة مضبوطة كغير محمية، المشغل المفروض يجيب الرابط مباشرة
+  // من channels.directUrl بدون المرور من هنا أصلاً. لكن لو انستدعيت الدالة
+  // بالغلط لقناة غير محمية، نرجّع رابطها العادي بدل الفشل.
+  if (channelSnap.exists && channelSnap.data().protected === false) {
+    const directUrl = channelSnap.data().directUrl;
+    if (directUrl) {
+      return {url: directUrl, expiresIn: null};
+    }
+  }
+
   if (!streamSnap.exists) {
     throw new HttpsError(
         "not-found",

@@ -183,7 +183,7 @@ async function loadChannels() {
     channelsList.innerHTML = currentChannels.map((channel) => {
       const category = currentCategories.find((item) => item.id === channel.categoryId);
       const logo = channel.logoUrl ? `<img class="channel-logo" src="${escapeHtml(channel.logoUrl)}" alt="">` : '<div class="channel-logo category-image-placeholder">⚽</div>';
-      return `<article class="card channel-item">${logo}<div class="channel-info"><h3>${escapeHtml(channel.title || 'قناة بلا اسم')}</h3><p>${escapeHtml(category?.title || 'قسم غير محدد')} · ${escapeHtml(channel.subtitle || 'بدون وصف')}</p><div class="channel-source"><input type="text" class="source-input" data-source-input="${escapeHtml(channel.id)}" placeholder="الصق رابط m3u8 هنا"><button type="button" data-save-source="${escapeHtml(channel.id)}">حفظ المصدر</button><span class="source-status" data-source-status="${escapeHtml(channel.id)}"></span></div></div><div class="channel-actions"><button type="button" data-edit-channel="${escapeHtml(channel.id)}">تعديل</button><button class="delete-category-button" type="button" data-delete-channel="${escapeHtml(channel.id)}">حذف</button></div></article>`;
+      return `<article class="card channel-item">${logo}<div class="channel-info"><h3>${escapeHtml(channel.title || 'قناة بلا اسم')}</h3><p>${escapeHtml(category?.title || 'قسم غير محدد')} · ${escapeHtml(channel.subtitle || 'بدون وصف')}</p><div class="channel-source"><label class="protect-toggle"><input type="checkbox" data-protected-toggle="${escapeHtml(channel.id)}" ${channel.protected === false ? '' : 'checked'}> حماية برابط مؤقت</label><input type="text" class="source-input" data-source-input="${escapeHtml(channel.id)}" placeholder="الصق رابط m3u8 هنا"><button type="button" data-save-source="${escapeHtml(channel.id)}">حفظ المصدر</button><span class="source-status" data-source-status="${escapeHtml(channel.id)}"></span></div></div><div class="channel-actions"><button type="button" data-edit-channel="${escapeHtml(channel.id)}">تعديل</button><button class="delete-category-button" type="button" data-delete-channel="${escapeHtml(channel.id)}">حذف</button></div></article>`;
     }).join('');
     channelsList.classList.remove('hidden');
     loadChannelSources(currentChannels);
@@ -196,17 +196,23 @@ async function loadChannels() {
 
 // مصادر البث الحقيقية (روابط m3u8) محفوظة في مجموعة منفصلة privateStreams
 // لا يقرأها تطبيق المحتوى أبداً — فقط لوحة التحكم (بعد تسجيل الدخول) والـ Cloud Function.
+// القنوات غير المحمية تُحفظ مباشرة داخل channels.directUrl (قراءة عامة، بدون تأخير التوكن).
 async function loadChannelSources(channels) {
   await Promise.all(channels.map(async (channel) => {
     const input = document.querySelector(`[data-source-input="${channel.id}"]`);
     const status = document.querySelector(`[data-source-status="${channel.id}"]`);
     if (!input) return;
+    const isProtected = channel.protected !== false;
+    if (!isProtected) {
+      if (channel.directUrl) { input.value = channel.directUrl; if (status) status.textContent = 'محفوظ بدون حماية (بدون تأخير)'; }
+      return;
+    }
     try {
       const snapshot = await getDoc(doc(db, 'privateStreams', channel.id));
       const data = snapshot.data();
       if (data?.url) {
         input.value = data.url;
-        if (status) status.textContent = 'محفوظ حالياً';
+        if (status) status.textContent = 'محفوظ ومحمي برابط مؤقت';
       }
     } catch (_) {
       if (status) status.textContent = 'تعذر تحميل المصدر الحالي';
@@ -218,14 +224,22 @@ async function saveChannelSource(channelId) {
   const input = document.querySelector(`[data-source-input="${channelId}"]`);
   const status = document.querySelector(`[data-source-status="${channelId}"]`);
   const button = document.querySelector(`[data-save-source="${channelId}"]`);
+  const protectedToggle = document.querySelector(`[data-protected-toggle="${channelId}"]`);
   if (!input) return;
   const url = input.value.trim();
   if (!url) { if (status) { status.textContent = 'الصق رابط m3u8 أولاً'; status.classList.add('error'); } return; }
+  const isProtected = protectedToggle ? protectedToggle.checked : true;
   if (button) { button.disabled = true; button.textContent = 'جارٍ الحفظ…'; }
   if (status) status.classList.remove('error');
   try {
-    await setDoc(doc(db, 'privateStreams', channelId), { url, updatedAt: serverTimestamp() }, { merge: true });
-    if (status) status.textContent = 'تم الحفظ ✓ — سيعمل فوراً في المشغل';
+    if (isProtected) {
+      await setDoc(doc(db, 'privateStreams', channelId), { url, updatedAt: serverTimestamp() }, { merge: true });
+      await updateDoc(doc(db, 'channels', channelId), { protected: true, directUrl: null });
+      if (status) status.textContent = 'تم الحفظ ✓ محمي برابط مؤقت';
+    } else {
+      await updateDoc(doc(db, 'channels', channelId), { protected: false, directUrl: url });
+      if (status) status.textContent = 'تم الحفظ ✓ بدون حماية — تشغيل فوري بدون تأخير';
+    }
   } catch (_) {
     if (status) { status.textContent = 'تعذر الحفظ. تحقق من قواعد Firestore.'; status.classList.add('error'); }
   } finally {
