@@ -253,6 +253,7 @@ async function loadPlayerSettings() {
     const data = snapshot.data();
     if (!data) return;
     document.querySelector('#player-scheme').value = data.deepLinkScheme || 'sportsplayer';
+    document.querySelector('#player-package').value = data.androidPackage || '';
     document.querySelector('#player-store-url').value = data.storeUrl || '';
   } catch (_) {
     // إعدادات المشغل اختيارية إلى أن ينشر تطبيق المشغل في Google Play.
@@ -395,10 +396,12 @@ document.querySelector('#player-form').addEventListener('submit', async (event) 
   event.preventDefault();
   const message = document.querySelector('#player-message');
   const scheme = document.querySelector('#player-scheme').value.trim().replaceAll('://', '');
+  const androidPackage = document.querySelector('#player-package').value.trim();
   const storeUrl = document.querySelector('#player-store-url').value.trim();
   try {
     await setDoc(doc(db, 'settings', 'player'), {
       deepLinkScheme: scheme,
+      androidPackage,
       storeUrl,
       updatedAt: serverTimestamp(),
     }, { merge: true });
