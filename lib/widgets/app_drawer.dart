@@ -1,0 +1,54 @@
+import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
+import '../core/services/app_settings_service.dart';
+
+/// القائمة الجانبية للشاشة الرئيسية. تُبنى تدريجياً — كل بند جديد من
+/// القسم 3 (مشاركة، تواصل معنا، الشروط، الخصوصية) يُضاف هنا.
+class AppDrawer extends StatelessWidget {
+  const AppDrawer({super.key});
+
+  Future<void> _shareApp(BuildContext context) async {
+    final settings = await AppSettingsService.fetchSettings();
+    final link = settings.appStoreUrl.trim();
+    final text = link.isNotEmpty
+        ? '${settings.shareMessage}\n$link'
+        : settings.shareMessage;
+    await Share.share(text);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Drawer(
+      child: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            DrawerHeader(
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primary.withOpacity(0.12),
+              ),
+              child: Align(
+                alignment: Alignment.bottomRight,
+                child: Text(
+                  'البث الرياضي',
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleLarge
+                      ?.copyWith(fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.share),
+              title: const Text('مشاركة التطبيق'),
+              onTap: () {
+                Navigator.of(context).pop();
+                _shareApp(context);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

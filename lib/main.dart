@@ -1,10 +1,13 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'core/services/content_service.dart';
+import 'core/services/favorites_service.dart';
 import 'features/channels/channels_screen.dart';
+import 'features/favorites/favorites_screen.dart';
 import 'firebase_options.dart';
 import 'theme/app_theme.dart';
 import 'theme/dynamic_theme_service.dart';
+import 'widgets/app_drawer.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -30,6 +33,7 @@ class _BootAppState extends State<_BootApp> {
   Future<void> _initialize() async {
     try {
       await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+      await FavoritesService.init();
       if (mounted) setState(() => _ready = true);
     } catch (error) {
       if (mounted) setState(() => _error = error.toString());
@@ -96,7 +100,19 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('البث الرياضي')),
+        appBar: AppBar(
+          title: const Text('البث الرياضي'),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.favorite),
+              tooltip: 'المفضلة',
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const FavoritesScreen()),
+              ),
+            ),
+          ],
+        ),
+        drawer: const AppDrawer(),
         body: StreamBuilder(
           stream: ContentService.watchRootCategories(),
           builder: (context, snapshot) {

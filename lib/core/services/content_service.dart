@@ -37,4 +37,19 @@ class ContentService {
             .map((d) => ChannelModel.fromMap(d.id, d.data()))
             .toList());
   }
+
+  /// يجلب بيانات قنوات محددة بمعرّفاتها (تُستخدم لشاشة المفضلة).
+  /// جلب لحظي واحد (وليس Stream) — يُعاد استدعاؤه كلما تغيّرت قائمة المفضلة.
+  static Future<List<ChannelModel>> fetchChannelsByIds(
+      List<String> ids) async {
+    if (ids.isEmpty) return [];
+    final futures = ids.map(
+      (id) => FirebaseFirestore.instance.collection('channels').doc(id).get(),
+    );
+    final snapshots = await Future.wait(futures);
+    return snapshots
+        .where((snap) => snap.exists && snap.data() != null)
+        .map((snap) => ChannelModel.fromMap(snap.id, snap.data()!))
+        .toList();
+  }
 }
