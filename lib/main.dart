@@ -2,8 +2,12 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'core/services/content_service.dart';
 import 'core/services/favorites_service.dart';
+import 'core/services/app_settings_service.dart';
+import 'core/services/app_update_service.dart';
 import 'features/channels/channels_screen.dart';
 import 'features/favorites/favorites_screen.dart';
+import 'features/settings/app_update_dialog.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'firebase_options.dart';
 import 'theme/app_theme.dart';
 import 'theme/dynamic_theme_service.dart';
@@ -82,6 +86,7 @@ class _ErrorApp extends StatelessWidget {
 
 class SportsApp extends StatelessWidget {
   const SportsApp({super.key});
+
   @override
   Widget build(BuildContext context) => StreamBuilder<DynamicThemeSettings>(
         stream: DynamicThemeService.watchTheme(),
@@ -90,9 +95,92 @@ class SportsApp extends StatelessWidget {
           debugShowCheckedModeBanner: false,
           theme: snapshot.data?.toThemeData() ?? AppTheme.fallback,
           locale: const Locale('ar'),
-          home: const HomeScreen(),
+          home: const _UpdateGate(),
         ),
       );
+}
+
+class _UpdateGate extends StatefulWidget {
+  const _UpdateGate();
+
+  @override
+  State<_UpdateGate> createState() => _UpdateGateState();
+}
+
+class _UpdateGateState extends State<_UpdateGate> {
+  AppUpdateInfo? _info;
+  bool _busy = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _check();
+  }
+
+  Future<void> _check() async {
+    final info = await AppUpdateService.fetchUpdateInfo();
+    if (!mounted) return;
+    setState(() {
+      _info = info;
+      _busy = false;
+    });
+
+    if (info.forceUpdate && info.minVersion != null && info.minVersion!.isNotEmpty) {
+      final current = const String.fromEnvironment('APP_VERSION', defaultValue: '0.0.0');
+      final currentParts = current.split('.').map(int.tryParse).toList();
+      final minParts = info.minVersion!.split('.').map(int.tryParse).toList();
+
+      final needsUpdate = currentParts.length == minParts.length &&
+          minParts[0] != null &&
+          currentParts[0] != null &&
+          minParts[1] != null &&
+          currentParts[1] != null &&
+          minParts[2] != null &&
+          currentParts[2] != null &&
+          (currentParts[0]! > minParts[0]! ||
+              (currentParts[0] == minParts[0] &&
+                  currentParts[1]! > minParts[1]!) ||
+              (currentParts[0] == minParts[0] &&
+                  currentParts[1] == minParts[1] &&
+                  currentParts[2]! > minParts[2]!)) == false;
+
+      if (needsUpdate) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (_) => AppUpdateDialog(
+              info: info,
+              onDismiss: info.forceUpdate ? null : () => Navigator.of(context).pop(),
+              onUpdate: () async {
+                Navigator.of(context).pop();
+                final settings = await AppSettingsService.fetchSettings();
+                if (!mounted) return;
+                if (settings.appStoreUrl.trim().isNotEmpty) {
+                  await launchUrl(Uri.parse(settings.appStoreUrl.trim()), mode: LaunchMode.externalApplication);
+                }
+              },
+            ),
+          );
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_busy) {
+      return MaterialApp(
+        debugShowCheckedModeBanner: false,
+        home: Scaffold(
+          backgroundColor: const Color(0xFF0B1120),
+          body: const Center(child: CircularProgressIndicator(color: Color(0xFF38BDF8))),
+        ),
+      );
+    }
+    return const HomeScreen();
+  }
 }
 
 class HomeScreen extends StatelessWidget {

@@ -15,6 +15,16 @@ class ChannelsScreen extends StatelessWidget {
       body: StreamBuilder<List<CategoryModel>>(
         stream: ContentService.watchChildCategories(category.id),
         builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Text('تعذر تحميل الأقسام الفرعية.\nتحقق من اتصال الإنترنت.',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.white70)),
+              ),
+            );
+          }
           if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
@@ -45,7 +55,16 @@ class ChannelsScreen extends StatelessWidget {
                       fit: StackFit.expand,
                       children: [
                         if (child.iconUrl != null && child.iconUrl!.isNotEmpty)
-                          Image.network(child.iconUrl!, fit: BoxFit.cover)
+                          Image.network(
+                            child.iconUrl!,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Container(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .primary
+                                  .withOpacity(0.15),
+                            ),
+                          )
                         else
                           Container(
                             color: Theme.of(context)
