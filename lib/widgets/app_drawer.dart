@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 import '../core/services/app_settings_service.dart';
+import '../features/contact/contact_screen.dart';
 
 /// القائمة الجانبية للشاشة الرئيسية. تُبنى تدريجياً — كل بند جديد من
 /// القسم 3 (مشاركة، تواصل معنا، الشروط، الخصوصية) يُضاف هنا.
@@ -44,6 +45,16 @@ class AppDrawer extends StatelessWidget {
               onTap: () {
                 Navigator.of(context).pop();
                 _shareApp(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.support_agent),
+              title: const Text('تواصل معنا'),
+              onTap: () {
+                Navigator.of(context).pop();
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const ContactScreen()),
+                );
               },
             ),
           ],
