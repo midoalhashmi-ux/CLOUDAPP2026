@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
-import '../core/services/app_update_service.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+import '../../core/services/app_update_service.dart';
+import '../../core/services/app_settings_service.dart';
 
 class AppUpdateDialog extends StatelessWidget {
   final AppUpdateInfo info;

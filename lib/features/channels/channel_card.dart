@@ -3,7 +3,6 @@ import '../../core/models/channel_model.dart';
 import '../../core/services/favorites_service.dart';
 import '../../core/services/player_launcher.dart';
 
-/// بطاقة قناة عامة تُستخدم في شاشة قنوات القسم وشاشة المفضلة معاً.
 class ChannelCard extends StatelessWidget {
   final ChannelModel channel;
   const ChannelCard({super.key, required this.channel});
