@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 import '../core/services/app_settings_service.dart';
 import '../features/contact/contact_screen.dart';
+import '../features/legal/legal_screen.dart';
 
 /// القائمة الجانبية للشاشة الرئيسية. تُبنى تدريجياً — كل بند جديد من
 /// القسم 3 (مشاركة، تواصل معنا، الشروط، الخصوصية) يُضاف هنا.
@@ -54,6 +55,36 @@ class AppDrawer extends StatelessWidget {
                 Navigator.of(context).pop();
                 Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => const ContactScreen()),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.description_outlined),
+              title: const Text('الشروط والأحكام'),
+              onTap: () {
+                Navigator.of(context).pop();
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const LegalScreen(
+                      field: 'terms',
+                      title: 'الشروط والأحكام',
+                    ),
+                  ),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.privacy_tip_outlined),
+              title: const Text('سياسة الخصوصية'),
+              onTap: () {
+                Navigator.of(context).pop();
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const LegalScreen(
+                      field: 'privacy',
+                      title: 'سياسة الخصوصية',
+                    ),
+                  ),
                 );
               },
             ),
