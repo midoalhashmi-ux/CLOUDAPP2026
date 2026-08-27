@@ -50,7 +50,21 @@ class FootballTranslations {
     'Dutch Eredivisie': 'الدوري الهولندي',
     'Portuguese Primeira Liga': 'الدوري البرتغالي',
     'Turkish Super Lig': 'الدوري التركي',
+    'Argentine Primera Division': 'الدوري الأرجنتيني',
+    'Argentina Primera Division': 'الدوري الأرجنتيني',
+    'Brazilian Serie A': 'الدوري البرازيلي',
+    'American Major League Soccer': 'الدوري الأمريكي (MLS)',
+    'CONMEBOL Libertadores': 'كوبا ليبرتادوريس',
+    'CONMEBOL Sudamericana': 'كوبا سودامريكانا',
+    'CONCACAF Champions Cup': 'دوري أبطال الكونكاكاف',
+    'Olympics Men': 'أولمبياد كرة القدم (رجال)',
   };
+
+  /// الدوريات المدعومة فقط (عربية + عالمية معروفة) — أي دوري غير موجود هنا
+  /// يُستبعد بالكامل من شاشة النتائج بدل عرضه بالإنجليزية، لأن غالب الدوريات
+  /// الصغيرة/المحلية غير المعروفة عالمياً (دوريات درجة ثانية وثالثة مثلاً)
+  /// ليست ضمن اهتمام المستخدم أصلاً.
+  static bool isSupportedLeague(String en) => _leagues.containsKey(en.trim());
 
   static final Map<String, String> _teams = {
     // السعودية
@@ -117,6 +131,23 @@ class FootballTranslations {
     'Inter Milan': 'إنتر ميلان',
     'Napoli': 'نابولي',
     'AS Roma': 'روما',
+    // أرجنتين
+    'River Plate': 'ريفر بليت',
+    'Boca Juniors': 'بوكا جونيورز',
+    'Racing Club': 'راسينغ كلوب',
+    'Independiente': 'إندبندينتي',
+    'San Lorenzo': 'سان لورينزو',
+    // البرازيل
+    'Flamengo': 'فلامنغو',
+    'Palmeiras': 'بالميراس',
+    'Corinthians': 'كورينثيانز',
+    'Sao Paulo': 'ساو باولو',
+    'Fluminense': 'فلومينينسي',
+    // أمريكا (MLS)
+    'LA Galaxy': 'إل إيه غالاكسي',
+    'Inter Miami': 'إنتر ميامي',
+    'LAFC': 'لوس أنجلوس إف سي',
+    'Seattle Sounders': 'سياتل ساوندرز',
   };
 
   static String league(String en) => _leagues[en.trim()] ?? en;

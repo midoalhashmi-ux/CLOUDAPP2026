@@ -109,9 +109,9 @@ class _MatchesScreenState extends State<MatchesScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           IconButton(
-            tooltip: 'اليوم السابق',
-            icon: const Icon(Icons.chevron_right),
-            onPressed: () => _changeDay(-1),
+            tooltip: 'اليوم التالي',
+            icon: const Icon(Icons.chevron_left),
+            onPressed: () => _changeDay(1),
           ),
           Text(
             _dayLabel,
@@ -121,9 +121,9 @@ class _MatchesScreenState extends State<MatchesScreen> {
                 ?.copyWith(fontWeight: FontWeight.bold),
           ),
           IconButton(
-            tooltip: 'اليوم التالي',
-            icon: const Icon(Icons.chevron_left),
-            onPressed: () => _changeDay(1),
+            tooltip: 'اليوم السابق',
+            icon: const Icon(Icons.chevron_right),
+            onPressed: () => _changeDay(-1),
           ),
         ],
       ),
@@ -144,7 +144,22 @@ class _MatchesScreenState extends State<MatchesScreen> {
     );
   }
 
-  Widget _buildMatchesList(BuildContext context, List<MatchModel> matches) {
+  Widget _buildMatchesList(BuildContext context, List<MatchModel> allMatches) {
+    // نعرض فقط الدوريات المدعومة بترجمة عربية (عربية + عالمية معروفة) —
+    // هذا يستبعد تلقائياً الدوريات الصغيرة/المغمورة التي لا تهم المستخدم
+    // بدل عرضها بأسماء إنجليزية غير مفهومة.
+    final matches = allMatches
+        .where((m) => FootballTranslations.isSupportedLeague(m.leagueNameEn))
+        .toList();
+
+    if (matches.isEmpty) {
+      return _buildMessage(
+        context,
+        icon: Icons.sports_soccer,
+        text: 'لا توجد مباريات في الدوريات المدعومة هذا اليوم.',
+      );
+    }
+
     final grouped = <String, List<MatchModel>>{};
     for (final match in matches) {
       grouped.putIfAbsent(match.leagueNameEn, () => []).add(match);
