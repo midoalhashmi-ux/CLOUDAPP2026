@@ -45,6 +45,11 @@ android {
         release {
             // مؤقتاً نوقّع بمفتاح debug حتى تجهيز مفتاح توقيع حقيقي قبل النشر النهائي على Google Play
             signingConfig signingConfigs.debug
+            // تصغير الكود والموارد غير المستخدمة وقت البناء النهائي — يقلل
+            // حجم ملف الـ APK بشكل ملحوظ بدون أي تأثير على عمل التطبيق.
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
         }
     }
 }

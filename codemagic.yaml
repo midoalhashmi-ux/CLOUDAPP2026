@@ -8,6 +8,6 @@ workflows:
       - name: جلب الحزم
         script: flutter pub get
       - name: بناء APK
-        script: flutter build apk --release
+        script: flutter build apk --release --split-per-abi
     artifacts:
       - build/**/outputs/**/*.apk
