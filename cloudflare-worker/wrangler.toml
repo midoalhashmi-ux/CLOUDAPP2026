@@ -1,0 +1,18 @@
+name = "binsheikh-api"
+main = "src/index.js"
+compatibility_date = "2024-11-01"
+
+# مزامنة تلقائية كل ساعة — نفس دور syncMatchesHourly سابقاً.
+[triggers]
+crons = ["0 * * * *"]
+
+# متغيرات غير سرّية (اسم المشروع ثابت ومعروف، لا داعي لإخفائه).
+[vars]
+FIREBASE_PROJECT_ID = "sports-stream-app-36a7a"
+
+# الأسرار التالية تُضبط بأمر "wrangler secret put" وليس هنا:
+#   API_FOOTBALL_KEY
+#   GCP_SERVICE_ACCOUNT_EMAIL
+#   GCP_SERVICE_ACCOUNT_PRIVATE_KEY
+#   ADMIN_SYNC_SECRET
+# راجع README.md بنفس هذا المجلد للخطوات كاملة.

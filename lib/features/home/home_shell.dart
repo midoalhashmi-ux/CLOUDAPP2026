@@ -26,7 +26,7 @@ class _HomeShellState extends State<HomeShell> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('البث الرياضي'),
+        title: const Text('BinSheikh'),
         actions: [
           IconButton(
             icon: const Icon(Icons.favorite),

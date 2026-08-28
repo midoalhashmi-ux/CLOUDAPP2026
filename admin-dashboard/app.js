@@ -13,12 +13,20 @@ import {
   getDocs,
   getDoc,
   getFirestore,
+  limit,
   orderBy,
   query,
   serverTimestamp,
   setDoc,
   updateDoc,
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+
+// عنوان Cloudflare Worker (بديل Firebase Cloud Functions — بدون خطة Blaze
+// ولا حساب فوترة سعودي عبر CNTXT). استبدله بالعنوان الحقيقي بعد
+// "wrangler deploy" — راجع cloudflare-worker/README.md.
+const WORKER_BASE_URL = 'https://binsheikh-api.YOUR-SUBDOMAIN.workers.dev';
+// نفس القيمة اللي ضبطتها بأمر: wrangler secret put ADMIN_SYNC_SECRET
+const ADMIN_SYNC_SECRET = 'REPLACE-WITH-YOUR-OWN-SECRET';
 
 // إعدادات تطبيق الويب من مشروع Firebase نفسه. لا تضع هنا كلمات مرور المستخدمين.
 const firebaseConfig = {
@@ -76,6 +84,25 @@ const channelsCount = document.querySelector('#channels-count');
 let currentChannels = [];
 let currentCategories = [];
 let currentParentId = null;
+
+// ---- المباريات (API-Football عبر Cloud Function) ----
+const syncMatchesButton = document.querySelector('#sync-matches-button');
+const matchesStatusText = document.querySelector('#matches-status-text');
+const matchesMessage = document.querySelector('#matches-message');
+
+// ---- الرسائل (contactMessages) ----
+const messagesLoading = document.querySelector('#messages-loading');
+const messagesEmpty = document.querySelector('#messages-empty');
+const messagesList = document.querySelector('#messages-list');
+const messagesCount = document.querySelector('#messages-count');
+const messagesBadge = document.querySelector('#messages-badge');
+let currentMessages = [];
+
+// ---- الشروط والأحكام / سياسة الخصوصية ----
+const legalForm = document.querySelector('#legal-form');
+const legalTerms = document.querySelector('#legal-terms');
+const legalPrivacy = document.querySelector('#legal-privacy');
+const legalMessage = document.querySelector('#legal-message');
 
 function showView(name) {
   Object.entries(views).forEach(([key, element]) => element.classList.toggle('hidden', key !== name));
@@ -260,6 +287,173 @@ async function loadPlayerSettings() {
   }
 }
 
+// ==========================================================================
+// مباريات اليوم — حالة المزامنة وزر "مزامنة الآن"
+// ==========================================================================
+// تُقرأ فقط للعرض هنا (نفس مستند matches_daily/{today} الذي يقرأه التطبيق).
+// الكتابة الفعلية تتم حصراً داخل Cloud Function refreshMatches (Admin SDK)،
+// وليس من هذا الملف — راجع firestore.rules (allow write: if false;).
+function todayDateKey() {
+  const now = new Date();
+  return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}-${String(now.getUTCDate()).padStart(2, '0')}`;
+}
+
+function formatTimestamp(value) {
+  if (!value?.toDate) return 'غير معروف';
+  return value.toDate().toLocaleString('ar-EG', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' });
+}
+
+async function loadMatchesStatus() {
+  matchesStatusText.textContent = 'جارٍ التحميل…';
+  try {
+    const snapshot = await getDoc(doc(db, 'matches_daily', todayDateKey()));
+    const data = snapshot.data();
+    if (!data) {
+      matchesStatusText.textContent = 'لا توجد مزامنة اليوم بعد. اضغط «مزامنة الآن».';
+      return;
+    }
+    const count = Array.isArray(data.events) ? data.events.length : 0;
+    matchesStatusText.textContent = `آخر تحديث: ${formatTimestamp(data.updatedAt)} · ${count} مباراة اليوم`;
+  } catch (_) {
+    matchesStatusText.textContent = 'تعذر قراءة حالة المزامنة.';
+  }
+}
+
+syncMatchesButton?.addEventListener('click', async () => {
+  syncMatchesButton.disabled = true;
+  syncMatchesButton.textContent = 'جارٍ المزامنة…';
+  matchesMessage.classList.add('hidden');
+  matchesMessage.classList.remove('error-card');
+  try {
+    const response = await fetch(`${WORKER_BASE_URL}/refreshMatches`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-admin-key': ADMIN_SYNC_SECRET },
+      body: JSON.stringify({ date: todayDateKey() }),
+    });
+    const result = await response.json();
+    if (!response.ok || result.ok === false) {
+      throw new Error(result.message || `HTTP ${response.status}`);
+    }
+    matchesMessage.textContent = `تمت المزامنة بنجاح — ${result.count ?? 0} مباراة.`;
+    matchesMessage.classList.remove('hidden');
+    await loadMatchesStatus();
+  } catch (error) {
+    matchesMessage.textContent = 'تعذرت المزامنة. تأكد من ضبط أسرار Worker (راجع cloudflare-worker/README.md) ومن تحديث WORKER_BASE_URL في هذا الملف.';
+    matchesMessage.classList.remove('hidden');
+    matchesMessage.classList.add('error-card');
+  } finally {
+    syncMatchesButton.disabled = false;
+    syncMatchesButton.textContent = 'مزامنة الآن';
+  }
+});
+
+// ==========================================================================
+// الرسائل الواردة (contactMessages) — تواصل معنا / إبلاغ عن رابط معطوب
+// ==========================================================================
+const MESSAGE_TYPE_LABELS = { general: 'تواصل معنا', broken_link: 'رابط معطوب' };
+
+async function loadMessages() {
+  messagesLoading.classList.remove('hidden');
+  messagesEmpty.classList.add('hidden');
+  messagesList.classList.add('hidden');
+  try {
+    const messagesQuery = query(collection(db, 'contactMessages'), orderBy('createdAt', 'desc'), limit(100));
+    const snapshot = await getDocs(messagesQuery);
+    currentMessages = snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
+    messagesLoading.classList.add('hidden');
+
+    const newCount = currentMessages.filter((message) => message.status !== 'read').length;
+    messagesCount.textContent = `${currentMessages.length} رسالة`;
+    if (newCount > 0) {
+      messagesBadge.textContent = String(newCount);
+      messagesBadge.classList.remove('hidden');
+    } else {
+      messagesBadge.classList.add('hidden');
+    }
+
+    if (!currentMessages.length) {
+      messagesEmpty.classList.remove('hidden');
+      return;
+    }
+
+    messagesList.innerHTML = currentMessages.map((message) => {
+      const isBroken = message.type === 'broken_link';
+      const typeLabel = MESSAGE_TYPE_LABELS[message.type] || 'رسالة';
+      const isRead = message.status === 'read';
+      const channelInfo = message.channelInfo
+        ? `<p class="message-channel-info">القناة/الرابط المُبلَّغ عنه: ${escapeHtml(message.channelInfo)}</p>`
+        : '';
+      return `<article class="card message-item">
+        <div class="message-item-head">
+          <span class="message-type-tag${isBroken ? ' broken-link' : ''}">${typeLabel}</span>
+          <span class="message-status-tag ${isRead ? 'read' : 'new'}">${isRead ? 'تمت القراءة' : 'جديدة'}</span>
+          <span class="message-date">${formatTimestamp(message.createdAt)}</span>
+        </div>
+        <p class="message-body">${escapeHtml(message.message || '')}</p>
+        ${channelInfo}
+        <div class="message-actions">
+          ${isRead
+            ? ''
+            : `<button type="button" data-mark-read="${escapeHtml(message.id)}">تحديد كمقروءة</button>`}
+          <button class="delete-category-button" type="button" data-delete-message="${escapeHtml(message.id)}">حذف</button>
+        </div>
+      </article>`;
+    }).join('');
+    messagesList.classList.remove('hidden');
+  } catch (_) {
+    messagesLoading.classList.add('hidden');
+    messagesEmpty.classList.remove('hidden');
+    messagesEmpty.innerHTML = '<h2>تعذر تحميل الرسائل</h2><p>تأكد من صلاحيات القراءة على contactMessages في قواعد Firestore.</p>';
+  }
+}
+
+messagesList?.addEventListener('click', async (event) => {
+  const markRead = event.target.closest('[data-mark-read]');
+  const remove = event.target.closest('[data-delete-message]');
+  if (markRead) {
+    try { await updateDoc(doc(db, 'contactMessages', markRead.dataset.markRead), { status: 'read' }); await loadMessages(); }
+    catch (_) { window.alert('تعذر تحديث حالة الرسالة.'); }
+    return;
+  }
+  if (remove) {
+    if (!window.confirm('حذف هذه الرسالة نهائياً؟')) return;
+    try { await deleteDoc(doc(db, 'contactMessages', remove.dataset.deleteMessage)); await loadMessages(); }
+    catch (_) { window.alert('تعذر حذف الرسالة.'); }
+  }
+});
+
+// ==========================================================================
+// الشروط والأحكام وسياسة الخصوصية (settings/legal)
+// ==========================================================================
+async function loadLegalSettings() {
+  try {
+    const snapshot = await getDoc(doc(db, 'settings', 'legal'));
+    const data = snapshot.data();
+    if (!data) return;
+    legalTerms.value = data.terms || '';
+    legalPrivacy.value = data.privacy || '';
+  } catch (_) {
+    // النصوص القانونية اختيارية إلى أن تُضاف لأول مرة من هنا.
+  }
+}
+
+legalForm?.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  legalMessage.textContent = '';
+  legalMessage.classList.remove('error');
+  try {
+    await setDoc(doc(db, 'settings', 'legal'), {
+      terms: legalTerms.value.trim(),
+      privacy: legalPrivacy.value.trim(),
+      updatedAt: serverTimestamp(),
+    }, { merge: true });
+    legalMessage.textContent = 'تم حفظ النصوص، وستظهر فوراً في التطبيق.';
+  } catch (_) {
+    legalMessage.textContent = 'تعذر الحفظ. تحقق من قواعد Firestore.';
+    legalMessage.classList.add('error');
+  }
+});
+
 onAuthStateChanged(auth, (user) => {
   if (user) {
     document.querySelector('#owner-email').textContent = user.email || 'المالك';
@@ -267,6 +461,9 @@ onAuthStateChanged(auth, (user) => {
     loadCategories();
     loadChannels();
     loadPlayerSettings();
+    loadMatchesStatus();
+    loadMessages();
+    loadLegalSettings();
     return;
   }
   showView('login');

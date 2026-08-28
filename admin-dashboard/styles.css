@@ -86,3 +86,24 @@ button:disabled { opacity: .65; cursor: wait; }
 .next-step p { margin: 0; color: #d7e2f3; }
 @media (max-width: 850px) { .category-form-card, .category-form, .channel-form { grid-template-columns: 1fr; } .category-form button, .channel-form button { width: 100%; } }
 @media (max-width: 680px) { .page-shell { padding-top: 22px; } .topbar, .section-heading, .next-step { align-items: flex-start; flex-direction: column; } .section-actions { align-items: flex-start; flex-direction: column; } .categories-grid { grid-template-columns: 1fr; } }
+
+.matches-status-card { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 22px 26px; margin-bottom: 20px; }
+.matches-status-card button { width: auto; white-space: nowrap; }
+.message-item { display: flex; flex-direction: column; gap: 8px; padding: 16px 18px; }
+.message-item-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.message-type-tag { padding: 4px 10px; border-radius: 99px; font-size: .78rem; color: #bfe8ff; background: #12365b; }
+.message-type-tag.broken-link { color: #fecaca; background: #3a1220; }
+.message-date { color: #94a3b8; font-size: .78rem; }
+.message-body { margin: 0; color: #d7e2f3; line-height: 1.7; white-space: pre-wrap; }
+.message-channel-info { margin: 0; color: #9fb2cc; font-size: .85rem; }
+.message-status-tag { padding: 3px 9px; border-radius: 99px; font-size: .74rem; }
+.message-status-tag.new { color: #082f49; background: #7dd3fc; }
+.message-status-tag.read { color: #bfe8ff; background: #17233a; border: 1px solid #3a4d6b; }
+.message-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+.message-actions button { width: auto; padding: 8px 14px; font-size: .85rem; }
+.legal-form-card { display: block; padding: 24px; margin-bottom: 20px; }
+.legal-form { display: grid; gap: 16px; margin-top: 20px; }
+.legal-form label { margin: 0 0 8px; }
+textarea { width: 100%; color: #f8fafc; background: #17233a; border: 1px solid #3a4d6b; border-radius: 10px; padding: 12px; outline: none; font: inherit; resize: vertical; line-height: 1.6; }
+textarea:focus { border-color: #38bdf8; }
+@media (max-width: 850px) { .matches-status-card { flex-direction: column; align-items: stretch; } }

@@ -16,7 +16,7 @@ class AppSettings {
       appStoreUrl: map?['appStoreUrl'] ?? '',
       shareMessage: (map?['shareMessage'] as String?)?.trim().isNotEmpty == true
           ? map!['shareMessage']
-          : 'جرّب تطبيق البث الرياضي!',
+          : 'جرّب تطبيق BinSheikh!',
     );
   }
 }

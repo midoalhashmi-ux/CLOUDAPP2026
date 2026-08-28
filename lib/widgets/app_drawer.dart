@@ -32,7 +32,7 @@ class AppDrawer extends StatelessWidget {
               child: Align(
                 alignment: Alignment.bottomRight,
                 child: Text(
-                  'البث الرياضي',
+                  'BinSheikh',
                   style: Theme.of(context)
                       .textTheme
                       .titleLarge

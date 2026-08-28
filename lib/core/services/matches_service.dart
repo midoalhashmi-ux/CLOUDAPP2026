@@ -1,34 +1,38 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/match_model.dart';
 
-/// يجلب جدول مباريات كرة القدم ليوم محدد من TheSportsDB — مصدر مجاني
-/// تماماً لا يحتاج تسجيل ولا مفتاح API خاص (يستخدم مفتاح الاختبار
-/// العام "3" الموثّق رسمياً من الخدمة نفسها للاستخدام غير التجاري).
+/// يقرأ جدول مباريات كرة القدم ليوم محدد من Firestore، بعد أن تكون
+/// Cloud Function (syncMatchesHourly / refreshMatches) قد جلبتها من
+/// API-Football وخزّنتها هناك.
 ///
-/// نطلب كل مباريات كرة القدم حول العالم في يوم واحد بطلب واحد فقط
-/// (eventsday.php?s=Soccer)، ثم نعرضها/نرتّبها في الواجهة — بدل تعداد
-/// كل دوري بطلب منفصل، حتى لا نستهلك الحد المسموح من الطلبات بسرعة.
+/// لا يوجد أي اتصال مباشر بأي API خارجي من هنا، ولا أي مفتاح API داخل
+/// التطبيق — التطبيق يقرأ فقط من مستند جاهز في مجموعة matches_daily.
+/// هذا يحل مشكلة عدم موثوقية TheSportsDB (كان أحياناً يرجّع فاضياً رغم
+/// وجود مباريات فعلاً)، ويمنع أيضاً أي احتمال لسرقة مفتاح API-Football
+/// من داخل الـ APK.
 class MatchesService {
   MatchesService._();
 
-  static const _baseUrl = 'https://www.thesportsdb.com/api/v1/json/3';
+  static const _collection = 'matches_daily';
+
+  static String _dateKey(DateTime date) =>
+      '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
 
   static Future<List<MatchModel>> fetchMatches(DateTime date) async {
-    final dateStr =
-        '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+    final doc = await FirebaseFirestore.instance
+        .collection(_collection)
+        .doc(_dateKey(date))
+        .get();
 
-    final uri = Uri.parse('$_baseUrl/eventsday.php?d=$dateStr&s=Soccer');
-    final response = await http.get(uri).timeout(const Duration(seconds: 12));
+    if (!doc.exists) return [];
 
-    if (response.statusCode != 200) {
-      throw Exception('تعذر جلب المباريات (${response.statusCode})');
-    }
-
-    final body = jsonDecode(response.body) as Map<String, dynamic>;
-    final events = body['events'] as List<dynamic>?;
+    final data = doc.data();
+    final events = data?['events'] as List<dynamic>?;
     if (events == null || events.isEmpty) return [];
 
+    // نفس دالة التحويل المستخدمة سابقاً مع TheSportsDB — الحقول اللي
+    // تخزّنها الـ Cloud Function في Firestore بنفس التسمية والشكل تماماً
+    // (idEvent, strLeague, strHomeTeam...)، فلا حاجة لأي دالة تحويل جديدة.
     final matches = events
         .whereType<Map<String, dynamic>>()
         .map(MatchModel.fromTheSportsDb)

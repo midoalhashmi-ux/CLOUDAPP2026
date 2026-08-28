@@ -25,10 +25,19 @@ class _BootAppState extends State<_BootApp> {
   String? _error;
   bool _ready = false;
 
+  // شاشة البداية (Splash) موجودة في هذا التطبيق فقط (BinSheikh) — تطبيق
+  // المشغل لا يعرض أي شاشة بداية إطلاقاً. نضمن ظهورها لمدة كافية للعلامة
+  // التجارية حتى لو انتهت تهيئة Firebase بشكل أسرع من ذلك.
+  static const _minSplashDuration = Duration(milliseconds: 1400);
+  bool _minSplashElapsed = false;
+
   @override
   void initState() {
     super.initState();
     _initialize();
+    Future.delayed(_minSplashDuration, () {
+      if (mounted) setState(() => _minSplashElapsed = true);
+    });
   }
 
   Future<void> _initialize() async {
@@ -44,19 +53,38 @@ class _BootAppState extends State<_BootApp> {
   @override
   Widget build(BuildContext context) {
     if (_error != null) return _ErrorApp(error: _error!);
-    if (!_ready) return const _LoadingApp();
+    if (!_ready || !_minSplashElapsed) return const _SplashApp();
     return const SportsApp();
   }
 }
 
-class _LoadingApp extends StatelessWidget {
-  const _LoadingApp();
+class _SplashApp extends StatelessWidget {
+  const _SplashApp();
   @override
   Widget build(BuildContext context) => const MaterialApp(
         debugShowCheckedModeBanner: false,
         home: Scaffold(
           backgroundColor: Color(0xFF0B1120),
-          body: Center(child: CircularProgressIndicator(color: Color(0xFF38BDF8))),
+          body: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.live_tv, size: 72, color: Color(0xFF38BDF8)),
+                SizedBox(height: 16),
+                Text(
+                  'BinSheikh',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 26,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                SizedBox(height: 24),
+                CircularProgressIndicator(color: Color(0xFF38BDF8)),
+              ],
+            ),
+          ),
         ),
       );
 }
@@ -88,7 +116,7 @@ class SportsApp extends StatelessWidget {
   Widget build(BuildContext context) => StreamBuilder<DynamicThemeSettings>(
         stream: DynamicThemeService.watchTheme(),
         builder: (context, snapshot) => MaterialApp(
-          title: 'البث الرياضي',
+          title: 'BinSheikh',
           debugShowCheckedModeBanner: false,
           theme: snapshot.data?.toThemeData() ?? AppTheme.fallback,
           locale: const Locale('ar'),
