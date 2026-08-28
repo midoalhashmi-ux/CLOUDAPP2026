@@ -116,12 +116,23 @@ async function fetchAndStoreFixtures(env, dateStr) {
   }
 
   const body = await response.json();
-  const events = (body.response || []).map(normalizeFixture);
+  const allEvents = (body.response || []).map(normalizeFixture);
+
+  // الطلب بدون أي تصفية يرجّع مئات المباريات يومياً (كل درجات ودوريات
+  // العالم، حتى الدرجات الهاوية والشبابية المغمورة) — وهذه الدوريات
+  // غالباً لا تملك شعارات فرق أو دوري مسجّلة في قاعدة بيانات API-Football
+  // أصلاً، وهذا بالضبط سبب ظهور صور مكسورة في شاشة النتائج. نستبعدها
+  // بدل عرضها بصورة مكسورة، ونحتفظ فقط بالمباريات التي تملك بيانات صور
+  // كاملة (شعار الفريقين + شعار الدوري).
+  const events = allEvents.filter((event) =>
+    event.strHomeTeamBadge && event.strAwayTeamBadge && event.strLeagueBadge,
+  );
 
   await setDoc(env, `matches_daily/${dateStr}`, {
     events,
     updatedAt: new Date(),
     source: 'api-football',
+    rawResultsCount: allEvents.length,
   });
 
   return events.length;
