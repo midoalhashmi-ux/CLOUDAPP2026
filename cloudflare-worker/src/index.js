@@ -116,6 +116,19 @@ async function fetchAndStoreFixtures(env, dateStr, { finalize = false } = {}) {
   }
 
   const body = await response.json();
+
+  // API-Football يرجّع HTTP 200 حتى في حالة خطأ فعلي (مفتاح غير صالح،
+  // انتهاء الحصة اليومية/الدقيقية، معامل غير صحيح...) — الخطأ يظهر فقط
+  // داخل body.errors مع response فاضية. بدون هذا الفحص كانت كل هذه
+  // الحالات تُعامَل بصمت على أنها "0 مباراة اليوم" بدل إظهار السبب
+  // الحقيقي، وهذا على الأغلب هو سبب اختفاء كل المباريات فجأة.
+  const apiErrors = body.errors;
+  const hasApiErrors = apiErrors &&
+      (Array.isArray(apiErrors) ? apiErrors.length > 0 : Object.keys(apiErrors).length > 0);
+  if (hasApiErrors) {
+    throw new Error(`API-Football رجّع خطأ: ${JSON.stringify(apiErrors)}`);
+  }
+
   const allEvents = (body.response || []).map(normalizeFixture);
 
   // الطلب بدون أي تصفية يرجّع مئات المباريات يومياً (كل درجات ودوريات
@@ -139,7 +152,7 @@ async function fetchAndStoreFixtures(env, dateStr, { finalize = false } = {}) {
     finalized: finalize,
   });
 
-  return events.length;
+  return { count: events.length, rawCount: allEvents.length };
 }
 
 function todayDateKey() {
@@ -228,8 +241,8 @@ async function handleRefreshMatches(request, env) {
 
   const dateStr = body.date || todayDateKey();
   try {
-    const count = await fetchAndStoreFixtures(env, dateStr);
-    return json({ ok: true, count, date: dateStr });
+    const { count, rawCount } = await fetchAndStoreFixtures(env, dateStr);
+    return json({ ok: true, count, rawCount, date: dateStr });
   } catch (error) {
     return json({ ok: false, message: String(error && error.message || error) }, 500);
   }
