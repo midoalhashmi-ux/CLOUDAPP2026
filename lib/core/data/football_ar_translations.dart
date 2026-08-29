@@ -58,6 +58,27 @@ class FootballTranslations {
     'CONMEBOL Sudamericana': 'كوبا سودامريكانا',
     'CONCACAF Champions Cup': 'دوري أبطال الكونكاكاف',
     'Olympics Men': 'أولمبياد كرة القدم (رجال)',
+
+    // أسماء API-Football القصيرة (بدون بادئة اسم الدولة) — API-Football
+    // يرجع "Premier League" وليس "English Premier League" مثلاً، فبدون
+    // هذه الأسطر كانت أشهر 5 دوريات أوروبية تُستبعد بالكامل من شاشة
+    // النتائج لعدم تطابق النص حرفياً مع القاموس القديم (المبني على
+    // تسمية TheSportsDB السابقة).
+    'Premier League': 'الدوري الإنجليزي الممتاز',
+    'La Liga': 'الدوري الإسباني',
+    'Serie A': 'الدوري الإيطالي',
+    'Bundesliga': 'الدوري الألماني',
+    'Ligue 1': 'الدوري الفرنسي',
+    'Eredivisie': 'الدوري الهولندي',
+    'Primeira Liga': 'الدوري البرتغالي',
+    'Süper Lig': 'الدوري التركي',
+    'Super Lig': 'الدوري التركي',
+    'World Cup': 'كأس العالم',
+    'World Cup - Qualification Europe': 'تصفيات كأس العالم الأوروبية',
+    'World Cup - Qualification Africa': 'تصفيات كأس العالم الأفريقية',
+    'World Cup - Qualification Asia': 'تصفيات كأس العالم الآسيوية',
+    'Club World Cup': 'كأس العالم للأندية',
+    'CAF Confederation Cup': 'كأس الكونفدرالية الأفريقية',
   };
 
   /// الدوريات المدعومة فقط (عربية + عالمية معروفة) — أي دوري غير موجود هنا
