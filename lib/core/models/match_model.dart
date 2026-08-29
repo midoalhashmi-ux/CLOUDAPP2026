@@ -9,6 +9,8 @@ class MatchModel {
   final String awayTeamEn;
   final String? homeLogo;
   final String? awayLogo;
+  final String? homeTeamId; // معرّف الفريق في API-Football — لجلب معلومات ما قبل المباراة
+  final String? awayTeamId;
   final DateTime kickoff; // بتوقيت الجهاز المحلي
   final int? homeScore;
   final int? awayScore;
@@ -23,6 +25,8 @@ class MatchModel {
     required this.awayTeamEn,
     this.homeLogo,
     this.awayLogo,
+    this.homeTeamId,
+    this.awayTeamId,
     required this.kickoff,
     this.homeScore,
     this.awayScore,
@@ -86,6 +90,12 @@ class MatchModel {
           : null,
       awayLogo: (json['strAwayTeamBadge'] as String?)?.trim().isNotEmpty == true
           ? json['strAwayTeamBadge']
+          : null,
+      homeTeamId: (json['homeTeamId'] ?? '').toString().trim().isNotEmpty
+          ? json['homeTeamId'].toString()
+          : null,
+      awayTeamId: (json['awayTeamId'] ?? '').toString().trim().isNotEmpty
+          ? json['awayTeamId'].toString()
           : null,
       kickoff: kickoff,
       homeScore: homeScore,

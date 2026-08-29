@@ -173,7 +173,11 @@ class _MatchesScreenState extends State<MatchesScreen> {
       grouped.putIfAbsent(match.leagueNameEn, () => []).add(match);
     }
 
-    final leagues = grouped.keys.toList();
+    // ترتيب الدوريات حسب الأولوية (الأكثر شعبية أولاً: الإنجليزي، السعودي،
+    // الإسباني...) بدل ترتيب ورودها العشوائي من المصدر.
+    final leagues = grouped.keys.toList()
+      ..sort((a, b) => FootballTranslations.leaguePriority(a)
+          .compareTo(FootballTranslations.leaguePriority(b)));
 
     return ListView.builder(
       padding: const EdgeInsets.only(bottom: 24),
@@ -299,9 +303,7 @@ class _MatchTile extends StatelessWidget {
         return const Text('مؤجلة',
             textAlign: TextAlign.center, style: TextStyle(color: Colors.orangeAccent, fontSize: 12));
       case MatchStatus.upcoming:
-        final h = match.kickoff.hour.toString().padLeft(2, '0');
-        final m = match.kickoff.minute.toString().padLeft(2, '0');
-        return Text('$h:$m',
+        return Text(FootballTranslations.formatTime12(match.kickoff),
             textAlign: TextAlign.center,
             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14));
     }

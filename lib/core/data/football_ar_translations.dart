@@ -70,6 +70,28 @@ class FootballTranslations {
   /// ليست ضمن اهتمام المستخدم أصلاً.
   static bool isSupportedLeague(String en) => _leagues.containsKey(en.trim());
 
+  /// ترتيب أولوية ظهور الدوريات في شاشة النتائج (الأصغر = يظهر أولاً).
+  /// أي دوري غير مذكور هنا يظهر بعد كل هذي القائمة، بترتيب ورودها من المصدر.
+  static const List<String> _leaguePriorityOrder = [
+    'Premier League', 'English Premier League',
+    'Saudi Pro League', 'Saudi Professional League',
+    'La Liga', 'Spanish La Liga',
+    'UEFA Champions League',
+    'Serie A', 'Italian Serie A',
+    'Bundesliga', 'German Bundesliga',
+    'Ligue 1', 'French Ligue 1',
+    'UEFA Europa League',
+    'Egyptian Premier League',
+    'AFC Champions League Elite', 'AFC Champions League',
+    'Qatar Stars League',
+    'UAE Pro League', 'UAE Arabian Gulf League',
+  ];
+
+  static int leaguePriority(String en) {
+    final index = _leaguePriorityOrder.indexOf(en.trim());
+    return index == -1 ? _leaguePriorityOrder.length : index;
+  }
+
   static final Map<String, String> _teams = {
     // السعودية
     'Al Hilal': 'الهلال', 'Al-Hilal': 'الهلال',
@@ -88,6 +110,114 @@ class FootballTranslations {
     'Al Wehda': 'الوحدة', 'Al-Wehda': 'الوحدة',
     'Al Raed': 'الرائد', 'Al-Raed': 'الرائد',
     'Al Qadsiah': 'القادسية', 'Al-Qadsiah': 'القادسية',
+    'Al Kholood': 'الخلود', 'Al-Kholood': 'الخلود',
+    'Al Diriyah': 'الدرعية', 'Al-Diriyah': 'الدرعية',
+    'Neom': 'نيوم', 'Neom SC': 'نيوم',
+
+    // مصر (الدوري المصري الممتاز)
+    'Al Ahly': 'الأهلي المصري', 'Al Ahly SC': 'الأهلي المصري',
+    'Zamalek': 'الزمالك',
+    'Pyramids': 'بيراميدز', 'Pyramids FC': 'بيراميدز',
+    'Al Ittihad Alexandria': 'الاتحاد السكندري',
+    'Ismaily': 'الإسماعيلي',
+    'ENPPI': 'إنبي',
+    'Ceramica Cleopatra': 'سيراميكا كليوباترا',
+    'Future FC': 'المستقبل',
+    'Smouha': 'سموحة',
+    'National Bank of Egypt': 'بنك الأهلي المصري', 'National Bank': 'بنك الأهلي المصري',
+    'Al Masry': 'المصري البورسعيدي',
+    'ZED FC': 'زد',
+    'Modern Sport': 'مودرن سبورت',
+    'Ghazl El Mahalla': 'غزل المحلة',
+    'Haras El Hodoud': 'حرس الحدود',
+    'El Gouna': 'الجونة',
+    'Pharco': 'فاركو',
+    "Tala'ea El Gaish": 'طلائع الجيش', 'Talaea El Gaish': 'طلائع الجيش',
+
+    // الإمارات (دوري المحترفين الإماراتي)
+    'Al Ain': 'العين',
+    'Al Wahda': 'الوحدة الإماراتي',
+    'Al Wasl': 'الوصل',
+    'Al Jazira': 'الجزيرة',
+    'Sharjah': 'الشارقة',
+    'Al Nasr': 'النصر الإماراتي',
+    'Shabab Al Ahli': 'شباب الأهلي',
+    'Ajman': 'عجمان',
+    'Baniyas': 'بني ياس',
+    'Al Ittihad Kalba': 'اتحاد كلباء',
+    'Khor Fakkan': 'خورفكان',
+    'Al Bataeh': 'البطائح',
+    'Dibba Al Fujairah': 'ديبا الفجيرة',
+    'Hatta': 'حتا',
+
+    // قطر (دوري نجوم قطر)
+    'Al Sadd': 'السد',
+    'Al Duhail': 'الدحيل',
+    'Al Rayyan': 'الريان',
+    'Al Gharafa': 'الغرافة',
+    'Al Arabi': 'العربي',
+    'Qatar SC': 'قطر',
+    'Al Wakrah': 'الوكرة',
+    'Umm Salal': 'أم صلال',
+    // ملاحظة: "Al Ahli" وحدها محجوزة أعلاه للأهلي السعودي (أشيع استخداماً)
+    // — أهلي الدوحة نادراً ما يرد بنفس الاسم المجرد من API-Football.
+    'Al Ahli Doha': 'الأهلي الدوحة',
+    'Al Shahania': 'الشحانية',
+    'Al Markhiya': 'المرخية',
+
+    // العراق (الدوري العراقي الممتاز)
+    'Al Shorta': 'الشرطة العراقي',
+    'Al Zawraa': 'الزوراء',
+    'Al Quwa Al Jawiya': 'القوة الجوية',
+    'Naft Al Wasat': 'نفط الوسط',
+    'Erbil': 'أربيل',
+    'Duhok': 'دهوك',
+    'Newroz': 'نوروز',
+    'Karbalaa': 'كربلاء',
+    'Naft Maysan': 'نفط ميسان',
+    'Al Talaba': 'الطلبة',
+    'Al Karkh': 'الكرخ',
+    'Nineveh': 'نينوى',
+    'Al Hudood': 'الحدود',
+    'Diyala': 'ديالى',
+    'Naft Al Basra': 'نفط البصرة',
+    'Zakho': 'زاخو',
+
+    // الكويت (الدوري الكويتي الممتاز)
+    'Al Kuwait': 'الكويت',
+    'Al Arabi Kuwait': 'العربي الكويتي',
+    'Kazma': 'كاظمة',
+    'Al Qadsia Kuwait': 'القادسية الكويتي',
+    'Al Salmiya': 'الصليبيخات', 'Salmiya': 'السالمية',
+    'Al Jahra': 'الجهراء',
+    'Al Fahaheel': 'الفحيحيل',
+    'Al Yarmouk': 'اليرموك',
+    'Al Naser': 'النصر الكويتي',
+    'Kuwait SC': 'الكويت',
+
+    // المغرب (البطولة المغربية المحترفة)
+    'Raja Casablanca': 'الرجاء البيضاوي',
+    'Wydad Casablanca': 'الوداد البيضاوي',
+    'FAR Rabat': 'الجيش الملكي',
+    'RS Berkane': 'نهضة بركان',
+    'Hassania Agadir': 'حسنية أكادير',
+    'Moghreb Tetouan': 'المغرب التطواني',
+    'Difaa El Jadidi': 'الدفاع الحسني الجديدي',
+    'Ittihad Tanger': 'اتحاد طنجة',
+
+    // تونس (الرابطة التونسية المحترفة الأولى)
+    'Esperance Tunis': 'الترجي التونسي',
+    'Etoile du Sahel': 'النجم الساحلي',
+    'Club Africain': 'النادي الإفريقي',
+    'CS Sfaxien': 'النادي الصفاقسي',
+
+    // الجزائر (الرابطة الجزائرية المحترفة الأولى)
+    'ES Setif': 'وفاق سطيف',
+    'CR Belouizdad': 'شباب بلوزداد',
+    'MC Alger': 'مولودية الجزائر',
+    'USM Alger': 'اتحاد العاصمة',
+    'JS Kabylie': 'شبيبة القبائل',
+
     // منتخبات
     'Saudi Arabia': 'السعودية',
     'Egypt': 'مصر',
@@ -204,6 +334,8 @@ class FootballTranslations {
     'Cremonese': 'كريمونيزي',
     'Pisa': 'بيزا',
     'Sassuolo': 'ساسولو',
+    'Monza': 'مونزا',
+    'Frosinone': 'فروزينوني',
 
     // الدوري الألماني (بقية الفرق)
     'RB Leipzig': 'آر بي لايبزيغ',
@@ -241,6 +373,17 @@ class FootballTranslations {
     'Le Mans': 'لومان',
     'Paris FC': 'باريس إف سي',
   };
+
+  /// يحوّل وقت المباراة إلى صيغة 12 ساعة بالعربي (مثال: "10:00 م").
+  static String formatTime12(DateTime dt) {
+    final hour24 = dt.hour;
+    final isPm = hour24 >= 12;
+    var hour12 = hour24 % 12;
+    if (hour12 == 0) hour12 = 12;
+    final minute = dt.minute.toString().padLeft(2, '0');
+    final suffix = isPm ? 'م' : 'ص';
+    return '$hour12:$minute $suffix';
+  }
 
   static String league(String en) => _leagues[en.trim()] ?? en;
 

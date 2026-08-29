@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import '../../core/data/football_ar_translations.dart';
 import '../../core/models/match_model.dart';
 import '../../core/models/match_stats_model.dart';
+import '../../core/models/pre_match_info_model.dart';
 import '../../core/services/match_stats_service.dart';
+import '../../core/services/pre_match_service.dart';
 
 /// شاشة تفاصيل مباراة واحدة: النتيجة + إحصائيات (استحواذ، تسديدات،
 /// ركنيات، بطاقات...) عند توفرها. لا تُستدعى الإحصائيات من الخادم
@@ -18,6 +20,7 @@ class MatchDetailsScreen extends StatefulWidget {
 
 class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
   late Future<MatchStatsResult>? _future;
+  late Future<PreMatchResult>? _preMatchFuture;
 
   @override
   void initState() {
@@ -30,6 +33,17 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
         ? MatchStatsService.fetchStats(
             fixtureId: match.id,
             matchFinished: match.status == MatchStatus.finished,
+          )
+        : null;
+
+    // معلومات ما قبل المباراة (آخر 5 مباريات + المواجهات المباشرة) تعتمد
+    // فقط على هوية الفريقين، مفيدة قبل المباراة وأثناءها وبعدها — تُجلب
+    // طالما معرّفا الفريقين متوفران (مباريات الدوريات الصغيرة القديمة
+    // المخزّنة قبل هذا التحديث قد لا تملكهما).
+    _preMatchFuture = (match.homeTeamId != null && match.awayTeamId != null)
+        ? PreMatchService.fetchInfo(
+            homeTeamId: match.homeTeamId!,
+            awayTeamId: match.awayTeamId!,
           )
         : null;
   }
@@ -47,6 +61,8 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
         padding: const EdgeInsets.all(16),
         children: [
           _buildScoreHeader(context, match),
+          const SizedBox(height: 24),
+          _buildPreMatchSection(context, match),
           const SizedBox(height: 24),
           _buildStatsSection(context, match),
         ],
@@ -73,7 +89,7 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
                     )
                   else
                     Text(
-                      '${match.kickoff.hour.toString().padLeft(2, '0')}:${match.kickoff.minute.toString().padLeft(2, '0')}',
+                      FootballTranslations.formatTime12(match.kickoff),
                       style: const TextStyle(
                           fontSize: 18, fontWeight: FontWeight.bold),
                     ),
@@ -121,6 +137,111 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
       case MatchStatus.upcoming:
         return 'لم تبدأ بعد';
     }
+  }
+
+  Widget _buildPreMatchSection(BuildContext context, MatchModel match) {
+    if (_preMatchFuture == null) return const SizedBox.shrink();
+
+    return FutureBuilder<PreMatchResult>(
+      future: _preMatchFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 16),
+            child: Center(
+                child: SizedBox(
+                    width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2))),
+          );
+        }
+
+        final result = snapshot.data;
+        if (result is! PreMatchSuccess) return const SizedBox.shrink();
+        final info = result.info;
+        if (info.homeForm.isEmpty && info.awayForm.isEmpty && info.h2h.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        return Card(
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text('قبل المباراة',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                const SizedBox(height: 12),
+                if (info.homeForm.isNotEmpty)
+                  _formRow(FootballTranslations.team(match.homeTeamEn), info.homeForm),
+                if (info.awayForm.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  _formRow(FootballTranslations.team(match.awayTeamEn), info.awayForm),
+                ],
+                if (info.h2h.isNotEmpty) ...[
+                  const SizedBox(height: 14),
+                  const Divider(),
+                  const SizedBox(height: 4),
+                  Text('آخر ${info.h2h.length} مواجهات مباشرة',
+                      style: const TextStyle(color: Colors.white70, fontSize: 13)),
+                  const SizedBox(height: 8),
+                  _formRow(null, info.h2h),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _formRow(String? label, List<FormResult> results) {
+    return Row(
+      children: [
+        if (label != null)
+          SizedBox(
+            width: 90,
+            child: Text(label,
+                maxLines: 1, overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold)),
+          ),
+        Expanded(
+          child: Wrap(
+            alignment: WrapAlignment.end,
+            spacing: 6,
+            children: results.map(_outcomeBadge).toList(),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _outcomeBadge(FormResult result) {
+    late Color color;
+    late String letter;
+    switch (result.outcome) {
+      case 'W':
+        color = Colors.green;
+        letter = 'ف';
+        break;
+      case 'L':
+        color = Colors.redAccent;
+        letter = 'خ';
+        break;
+      default:
+        color = Colors.orangeAccent;
+        letter = 'ت';
+    }
+    return Tooltip(
+      message:
+          '${result.teamScore} - ${result.opponentScore} ضد ${FootballTranslations.team(result.opponentEn)}',
+      child: Container(
+        width: 24,
+        height: 24,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        child: Text(letter,
+            style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+      ),
+    );
   }
 
   Widget _buildStatsSection(BuildContext context, MatchModel match) {

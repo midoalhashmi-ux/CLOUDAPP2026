@@ -96,6 +96,10 @@ function normalizeFixture(fx) {
     strAwayTeam: (teams.away && teams.away.name) || '',
     strHomeTeamBadge: (teams.home && teams.home.logo) || null,
     strAwayTeamBadge: (teams.away && teams.away.logo) || null,
+    // معرّفا الفريقين في API-Football — لازمان لجلب معلومات ما قبل
+    // المباراة (getPreMatchInfo): آخر 5 مباريات لكل فريق + آخر مواجهات.
+    homeTeamId: (teams.home && teams.home.id) ? String(teams.home.id) : null,
+    awayTeamId: (teams.away && teams.away.id) ? String(teams.away.id) : null,
     dateEvent,
     strTime: strTime || '00:00:00',
     intHomeScore: goals.home ?? null,
@@ -329,6 +333,103 @@ async function handleGetMatchStats(request, env) {
 }
 
 // ---------------------------------------------------------------------------
+// 4) معلومات ما قبل المباراة: آخر 5 مباريات لكل فريق + آخر مواجهات مباشرة
+//    بينهما. كاش مشترك بين كل المستخدمين لمدة 12 ساعة، بمفتاح مبني على
+//    رقمي الفريقين فقط (بدون ترتيب مضيف/ضيف) — بهذا الشكل أي عدد من
+//    المستخدمين يفتحون أي مباراة بين نفس الفريقين خلال نفس اليوم يشتركون
+//    في 3 طلبات API-Football واحدة فقط بدل 3 طلبات لكل فتحة شاشة.
+// ---------------------------------------------------------------------------
+async function fetchApiFootballJson(env, path) {
+  const response = await fetch(`https://v3.football.api-sports.io${path}`, {
+    headers: { 'x-apisports-key': env.API_FOOTBALL_KEY },
+  });
+  if (!response.ok) {
+    throw new Error(`API-Football HTTP ${response.status}`);
+  }
+  const body = await response.json();
+  const apiErrors = body.errors;
+  const hasApiErrors = apiErrors &&
+      (Array.isArray(apiErrors) ? apiErrors.length > 0 : Object.keys(apiErrors).length > 0);
+  if (hasApiErrors) {
+    throw new Error(`API-Football رجّع خطأ: ${JSON.stringify(apiErrors)}`);
+  }
+  return body.response || [];
+}
+
+// يحوّل مباراة سابقة (من fixtures أو headtohead) إلى نتيجة مبسّطة من
+// منظور فريق واحد (perspectiveTeamId) — فوز/تعادل/خسارة + الخصم + التاريخ.
+// يتجاهل المباريات غير المنتهية (لا نتيجة نهائية بعد).
+function buildFormEntry(fx, perspectiveTeamId) {
+  const fixture = fx.fixture || {};
+  const league = fx.league || {};
+  const teams = fx.teams || {};
+  const goals = fx.goals || {};
+  const statusShort = (fixture.status && fixture.status.short) || '';
+  if (!['FT', 'AET', 'PEN'].includes(statusShort)) return null;
+  if (goals.home == null || goals.away == null) return null;
+
+  const homeId = teams.home && teams.home.id;
+  const isHome = String(homeId) === String(perspectiveTeamId);
+  const dateIso = (fixture.date || '').toString();
+
+  return {
+    opponentEn: isHome ? ((teams.away && teams.away.name) || '') : ((teams.home && teams.home.name) || ''),
+    teamScore: isHome ? goals.home : goals.away,
+    opponentScore: isHome ? goals.away : goals.home,
+    dateEvent: dateIso.split('T')[0] || '',
+    leagueNameEn: league.name || '',
+  };
+}
+
+const PRE_MATCH_CACHE_MS = 12 * 60 * 60 * 1000; // 12 ساعة
+
+async function handleGetPreMatchInfo(request, env) {
+  let body;
+  try {
+    body = await request.json();
+  } catch (_) {
+    return json({ error: 'invalid-argument', message: 'body غير صالح.' }, 400);
+  }
+
+  const homeTeamId = body && body.homeTeamId;
+  const awayTeamId = body && body.awayTeamId;
+  if (!homeTeamId || !awayTeamId) {
+    return json({ error: 'invalid-argument', message: 'homeTeamId و awayTeamId مطلوبان.' }, 400);
+  }
+
+  // مفتاح الكاش لا يعتمد على ترتيب مضيف/ضيف — نفس زوج الفريقين يعيد
+  // استخدام نفس النتيجة المخزّنة بغض النظر عن مين المضيف في هذه المباراة.
+  const pairKey = [String(homeTeamId), String(awayTeamId)].sort().join('_');
+  const cacheKey = `prematch_info/${pairKey}`;
+
+  const cached = await getDoc(env, cacheKey);
+  const now = Date.now();
+  if (cached && (now - (cached.fetchedAtMs || 0)) < PRE_MATCH_CACHE_MS) {
+    return json({ info: cached.info, cached: true });
+  }
+
+  try {
+    const [h2hRaw, homeRaw, awayRaw] = await Promise.all([
+      fetchApiFootballJson(env, `/fixtures/headtohead?h2h=${homeTeamId}-${awayTeamId}&last=5`),
+      fetchApiFootballJson(env, `/fixtures?team=${homeTeamId}&last=5`),
+      fetchApiFootballJson(env, `/fixtures?team=${awayTeamId}&last=5`),
+    ]);
+
+    const info = {
+      h2h: h2hRaw.map((fx) => buildFormEntry(fx, homeTeamId)).filter(Boolean),
+      homeForm: homeRaw.map((fx) => buildFormEntry(fx, homeTeamId)).filter(Boolean),
+      awayForm: awayRaw.map((fx) => buildFormEntry(fx, awayTeamId)).filter(Boolean),
+    };
+
+    await setDoc(env, cacheKey, { info, fetchedAtMs: now });
+    return json({ info, cached: false });
+  } catch (error) {
+    if (cached) return json({ info: cached.info, cached: true, stale: true });
+    return json({ error: 'upstream-error', message: 'تعذر جلب معلومات ما قبل المباراة حالياً.' }, 502);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // التوجيه (Routing)
 // ---------------------------------------------------------------------------
 export default {
@@ -349,6 +450,10 @@ export default {
 
     if (request.method === 'POST' && url.pathname === '/getMatchStats') {
       return handleGetMatchStats(request, env);
+    }
+
+    if (request.method === 'POST' && url.pathname === '/getPreMatchInfo') {
+      return handleGetPreMatchInfo(request, env);
     }
 
     return json({ error: 'not-found', message: 'مسار غير معروف.' }, 404);
