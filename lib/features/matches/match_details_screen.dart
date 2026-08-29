@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../core/data/football_ar_translations.dart';
@@ -7,9 +9,17 @@ import '../../core/models/pre_match_info_model.dart';
 import '../../core/services/match_stats_service.dart';
 import '../../core/services/pre_match_service.dart';
 
-/// شاشة تفاصيل مباراة واحدة: النتيجة + إحصائيات (استحواذ، تسديدات،
-/// ركنيات، بطاقات...) عند توفرها. لا تُستدعى الإحصائيات من الخادم
-/// إطلاقاً للمباريات التي لم تبدأ بعد — لا توجد إحصائيات لها أصلاً.
+/// شاشة تفاصيل مباراة واحدة: النتيجة + معلومات اللقاء + آخر النتائج
+/// (نموذج الفريقين والمواجهات المباشرة) + إحصائيات (استحواذ، تسديدات،
+/// ركنيات، بطاقات...) عند توفرها.
+///
+/// ملاحظة تصميم مهمة: هذه الشاشة تعرض فقط الحقول المتوفرة فعلياً من
+/// المصدر الحالي (matches_daily عبر الووركر + getPreMatchInfo +
+/// getMatchStats). لا يوجد هنا أي عنصر يحتاج طلب API إضافي غير
+/// المُستخدَم أصلاً — لا تبويب ترتيب، ولا تشكيلة متوقعة، ولا هدافين،
+/// ولا قنوات ناقلة/معلقين (هذي البيانات غير متوفرة في API-Football
+/// أصلاً وتحتاج إدخال يدوي من لوحة تحكم لا توجد بعد). الإحصائيات لا
+/// تُستدعى إطلاقاً للمباريات التي لم تبدأ بعد — لا توجد إحصائيات لها.
 class MatchDetailsScreen extends StatefulWidget {
   final MatchModel match;
   const MatchDetailsScreen({super.key, required this.match});
@@ -21,6 +31,20 @@ class MatchDetailsScreen extends StatefulWidget {
 class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
   late Future<MatchStatsResult>? _future;
   late Future<PreMatchResult>? _preMatchFuture;
+
+  // مؤقّت العدّ التنازلي لموعد الانطلاق — حساب محلي بحت من DateTime
+  // المباراة (المتوفر أصلاً)، بدون أي اتصال شبكة إضافي.
+  Timer? _countdownTimer;
+
+  static const _weekdaysAr = [
+    'الاثنين',
+    'الثلاثاء',
+    'الأربعاء',
+    'الخميس',
+    'الجمعة',
+    'السبت',
+    'الأحد',
+  ];
 
   @override
   void initState() {
@@ -46,6 +70,18 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
             awayTeamId: match.awayTeamId!,
           )
         : null;
+
+    if (match.status == MatchStatus.upcoming) {
+      _countdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+        if (mounted) setState(() {});
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _countdownTimer?.cancel();
+    super.dispose();
   }
 
   @override
@@ -61,6 +97,8 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
         padding: const EdgeInsets.all(16),
         children: [
           _buildScoreHeader(context, match),
+          const SizedBox(height: 16),
+          _buildMatchInfoCard(context, match),
           const SizedBox(height: 24),
           _buildPreMatchSection(context, match),
           const SizedBox(height: 24),
@@ -70,44 +108,124 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
     );
   }
 
+  // -------------------------------------------------------------------
+  // رأس الشاشة: شعار الفريقين + النتيجة أو العدّ التنازلي + حالة المباراة
+  // -------------------------------------------------------------------
   Widget _buildScoreHeader(BuildContext context, MatchModel match) {
+    final primary = Theme.of(context).colorScheme.primary;
     return Card(
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 12),
+        padding: const EdgeInsets.symmetric(vertical: 22, horizontal: 12),
         child: Row(
           children: [
             Expanded(child: _teamHeader(match.homeTeamEn, match.homeLogo)),
             SizedBox(
-              width: 90,
-              child: Column(
-                children: [
-                  if (match.hasScore)
-                    Text(
-                      '${match.homeScore} - ${match.awayScore}',
-                      style: const TextStyle(
-                          fontSize: 24, fontWeight: FontWeight.bold),
-                    )
-                  else
-                    Text(
-                      FootballTranslations.formatTime12(match.kickoff),
-                      style: const TextStyle(
-                          fontSize: 18, fontWeight: FontWeight.bold),
-                    ),
-                  const SizedBox(height: 6),
-                  Text(_statusLabel(match.status),
-                      style: TextStyle(
-                          fontSize: 12,
-                          color: match.status == MatchStatus.live
-                              ? Colors.redAccent
-                              : Colors.white54)),
-                ],
-              ),
+              width: 110,
+              child: _buildCenterStatus(context, match, primary),
             ),
             Expanded(child: _teamHeader(match.awayTeamEn, match.awayLogo)),
           ],
         ),
       ),
     );
+  }
+
+  Widget _buildCenterStatus(BuildContext context, MatchModel match, Color primary) {
+    if (match.status == MatchStatus.upcoming) {
+      final remaining = match.kickoff.difference(DateTime.now());
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            FootballTranslations.formatTime12(match.kickoff),
+            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          if (!remaining.isNegative)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: primary.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                _formatCountdown(remaining),
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: primary,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
+            )
+          else
+            const Text('لم تبدأ بعد',
+                style: TextStyle(fontSize: 12, color: Colors.white54)),
+        ],
+      );
+    }
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (match.hasScore)
+          Text(
+            '${match.homeScore} - ${match.awayScore}',
+            style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
+          )
+        else
+          const Text('- : -',
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white38)),
+        const SizedBox(height: 6),
+        _statusChip(match.status),
+      ],
+    );
+  }
+
+  Widget _statusChip(MatchStatus status) {
+    late Color color;
+    late String label;
+    switch (status) {
+      case MatchStatus.live:
+        color = Colors.redAccent;
+        label = 'مباشر الآن';
+        break;
+      case MatchStatus.finished:
+        color = Colors.white54;
+        label = 'انتهت المباراة';
+        break;
+      case MatchStatus.postponed:
+        color = Colors.orangeAccent;
+        label = 'مؤجلة';
+        break;
+      case MatchStatus.upcoming:
+        color = Colors.white54;
+        label = 'لم تبدأ بعد';
+        break;
+    }
+    if (status == MatchStatus.live) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(4)),
+        child: const Text('مباشر الآن',
+            style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+      );
+    }
+    return Text(label, style: TextStyle(fontSize: 12, color: color));
+  }
+
+  /// يهيّئ عدّاً تنازلياً بصيغة سهلة القراءة: "س:د:ث"، ويضيف الأيام في
+  /// المقدمة فقط إذا تجاوز الفارق يوماً كاملاً.
+  String _formatCountdown(Duration d) {
+    final days = d.inDays;
+    final hours = d.inHours % 24;
+    final minutes = d.inMinutes % 60;
+    final seconds = d.inSeconds % 60;
+    final hh = hours.toString().padLeft(2, '0');
+    final mm = minutes.toString().padLeft(2, '0');
+    final ss = seconds.toString().padLeft(2, '0');
+    if (days > 0) return '$days يوم $hh:$mm:$ss';
+    return '$hh : $mm : $ss';
   }
 
   Widget _teamHeader(String nameEn, String? logo) {
@@ -126,19 +244,94 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
     );
   }
 
-  String _statusLabel(MatchStatus status) {
-    switch (status) {
-      case MatchStatus.live:
-        return 'مباشر الآن';
-      case MatchStatus.finished:
-        return 'انتهت المباراة';
-      case MatchStatus.postponed:
-        return 'مؤجلة';
-      case MatchStatus.upcoming:
-        return 'لم تبدأ بعد';
+  // -------------------------------------------------------------------
+  // معلومات اللقاء: فقط الحقول المتوفرة فعلياً في MatchModel (البطولة،
+  // الملعب إن وُجد، وقت المباراة، تاريخ المباراة). لا "الجولة" ولا
+  // "حكم المباراة" لأنهما غير مستخرَجين حالياً من استجابة API-Football
+  // في normalizeFixture — يمكن إضافتهما لاحقاً بدون أي طلب API إضافي
+  // (الحقلان موجودان أصلاً في نفس استجابة /fixtures: league.round و
+  // fixture.referee) إن رغبت بذلك.
+  // -------------------------------------------------------------------
+  Widget _buildMatchInfoCard(BuildContext context, MatchModel match) {
+    final rows = <Widget>[
+      _infoRow(
+        label: 'البطولة',
+        value: FootballTranslations.league(match.leagueNameEn),
+        leadingImage: match.leagueLogo,
+      ),
+    ];
+
+    if (match.venue != null && match.venue!.trim().isNotEmpty) {
+      rows.add(_infoRow(label: 'ملعب المباراة', value: match.venue!));
     }
+
+    rows.add(_infoRow(
+      label: 'وقت المباراة',
+      value: FootballTranslations.formatTime12(match.kickoff),
+    ));
+
+    rows.add(_infoRow(
+      label: 'تاريخ المباراة',
+      value: _formatDate(match.kickoff),
+    ));
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(14, 6, 14, 4),
+              child: Text('معلومات اللقاء',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+            ),
+            for (int i = 0; i < rows.length; i++) ...[
+              rows[i],
+              if (i != rows.length - 1) const Divider(height: 1),
+            ],
+          ],
+        ),
+      ),
+    );
   }
 
+  Widget _infoRow({required String label, required String value, String? leadingImage}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: const TextStyle(color: Colors.white70, fontSize: 13.5)),
+          Row(
+            children: [
+              Flexible(
+                child: Text(value,
+                    textAlign: TextAlign.left,
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
+              ),
+              if (leadingImage != null) ...[
+                const SizedBox(width: 8),
+                Image.network(leadingImage, width: 18, height: 18,
+                    errorBuilder: (_, __, ___) => const SizedBox.shrink()),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatDate(DateTime dt) {
+    final weekday = _weekdaysAr[dt.weekday - 1];
+    final dd = dt.day.toString().padLeft(2, '0');
+    final mm = dt.month.toString().padLeft(2, '0');
+    return '$weekday ($dd-$mm-${dt.year})';
+  }
+
+  // -------------------------------------------------------------------
+  // قبل المباراة: نموذج آخر 5 مباريات لكل فريق + آخر مواجهات مباشرة
+  // -------------------------------------------------------------------
   Widget _buildPreMatchSection(BuildContext context, MatchModel match) {
     if (_preMatchFuture == null) return const SizedBox.shrink();
 
@@ -244,6 +437,9 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
     );
   }
 
+  // -------------------------------------------------------------------
+  // الإحصائيات (بعد بداية المباراة فقط)
+  // -------------------------------------------------------------------
   Widget _buildStatsSection(BuildContext context, MatchModel match) {
     if (_future == null) {
       return _buildInfoMessage(
