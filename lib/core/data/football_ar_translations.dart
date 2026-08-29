@@ -26,38 +26,19 @@ class FootballTranslations {
     'AFC Champions League': 'دوري أبطال آسيا',
     'AFC Champions League Elite': 'دوري أبطال آسيا للنخبة',
     'English Premier League': 'الدوري الإنجليزي الممتاز',
-    'FA Cup': 'كأس الاتحاد الإنجليزي',
-    'English League Cup': 'كأس الرابطة الإنجليزية',
     'Spanish La Liga': 'الدوري الإسباني',
-    'Copa Del Rey': 'كأس ملك إسبانيا',
     'Italian Serie A': 'الدوري الإيطالي',
-    'Coppa Italia': 'كأس إيطاليا',
     'German Bundesliga': 'الدوري الألماني',
-    'DFB Pokal': 'كأس ألمانيا',
     'French Ligue 1': 'الدوري الفرنسي',
-    'Coupe de France': 'كأس فرنسا',
     'UEFA Champions League': 'دوري أبطال أوروبا',
     'UEFA Europa League': 'الدوري الأوروبي',
     'UEFA Europa Conference League': 'دوري المؤتمر الأوروبي',
-    'UEFA Nations League': 'دوري الأمم الأوروبية',
     'FIFA World Cup': 'كأس العالم',
     'FIFA Club World Cup': 'كأس العالم للأندية',
-    'World Cup Qualification UEFA': 'تصفيات كأس العالم الأوروبية',
     'World Cup Qualification CAF': 'تصفيات كأس العالم الأفريقية',
     'World Cup Qualification AFC': 'تصفيات كأس العالم الآسيوية',
     'Africa Cup of Nations': 'كأس الأمم الأفريقية',
     'AFC Asian Cup': 'كأس آسيا',
-    'Dutch Eredivisie': 'الدوري الهولندي',
-    'Portuguese Primeira Liga': 'الدوري البرتغالي',
-    'Turkish Super Lig': 'الدوري التركي',
-    'Argentine Primera Division': 'الدوري الأرجنتيني',
-    'Argentina Primera Division': 'الدوري الأرجنتيني',
-    'Brazilian Serie A': 'الدوري البرازيلي',
-    'American Major League Soccer': 'الدوري الأمريكي (MLS)',
-    'CONMEBOL Libertadores': 'كوبا ليبرتادوريس',
-    'CONMEBOL Sudamericana': 'كوبا سودامريكانا',
-    'CONCACAF Champions Cup': 'دوري أبطال الكونكاكاف',
-    'Olympics Men': 'أولمبياد كرة القدم (رجال)',
 
     // أسماء API-Football القصيرة (بدون بادئة اسم الدولة) — API-Football
     // يرجع "Premier League" وليس "English Premier League" مثلاً، فبدون
@@ -69,16 +50,18 @@ class FootballTranslations {
     'Serie A': 'الدوري الإيطالي',
     'Bundesliga': 'الدوري الألماني',
     'Ligue 1': 'الدوري الفرنسي',
-    'Eredivisie': 'الدوري الهولندي',
-    'Primeira Liga': 'الدوري البرتغالي',
-    'Süper Lig': 'الدوري التركي',
-    'Super Lig': 'الدوري التركي',
     'World Cup': 'كأس العالم',
-    'World Cup - Qualification Europe': 'تصفيات كأس العالم الأوروبية',
     'World Cup - Qualification Africa': 'تصفيات كأس العالم الأفريقية',
     'World Cup - Qualification Asia': 'تصفيات كأس العالم الآسيوية',
     'Club World Cup': 'كأس العالم للأندية',
     'CAF Confederation Cup': 'كأس الكونفدرالية الأفريقية',
+
+    // ملاحظة: عمداً ما أضفنا كؤوس محلية (FA Cup, Copa Del Rey, Coppa
+    // Italia, DFB Pokal, Coupe de France, English League Cup) ولا دوريات
+    // أخرى (هولندي/برتغالي/تركي/أرجنتيني/برازيلي/أمريكي...) ولا كأس أمم
+    // أوروبا (Nations League) ولا الأولمبياد — لأن هذي كانت تُدخل فرق
+    // درجة ثانية/ثالثة غير مطلوبة، حسب طلب حصر النتائج على الدرجة الأولى
+    // من الدوريات الخمس الكبرى + الدوريات العربية والأفريقية فقط.
   };
 
   /// الدوريات المدعومة فقط (عربية + عالمية معروفة) — أي دوري غير موجود هنا
