@@ -16,6 +16,8 @@ class MatchModel {
   final int? awayScore;
   final MatchStatus status;
   final String? venue;
+  final String? round; // مثال: "Regular Season - 2" — من league.round في API-Football
+  final String? referee; // حكم المباراة، إن كان متوفراً من المصدر
 
   MatchModel({
     required this.id,
@@ -32,6 +34,8 @@ class MatchModel {
     this.awayScore,
     required this.status,
     this.venue,
+    this.round,
+    this.referee,
   });
 
   bool get hasScore => homeScore != null && awayScore != null;
@@ -104,6 +108,12 @@ class MatchModel {
       venue: (json['strVenue'] as String?)?.trim().isEmpty == true
           ? null
           : json['strVenue'],
+      round: (json['strRound'] as String?)?.trim().isEmpty == true
+          ? null
+          : json['strRound'],
+      referee: (json['strReferee'] as String?)?.trim().isEmpty == true
+          ? null
+          : json['strReferee'],
     );
   }
 }
