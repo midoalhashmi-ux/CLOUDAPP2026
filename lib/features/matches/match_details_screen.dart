@@ -15,11 +15,13 @@ import '../../core/services/pre_match_service.dart';
 ///
 /// ملاحظة تصميم مهمة: هذه الشاشة تعرض فقط الحقول المتوفرة فعلياً من
 /// المصدر الحالي (matches_daily عبر الووركر + getPreMatchInfo +
-/// getMatchStats). لا يوجد هنا أي عنصر يحتاج طلب API إضافي غير
-/// المُستخدَم أصلاً — لا تبويب ترتيب، ولا تشكيلة متوقعة، ولا هدافين،
-/// ولا قنوات ناقلة/معلقين (هذي البيانات غير متوفرة في API-Football
-/// أصلاً وتحتاج إدخال يدوي من لوحة تحكم لا توجد بعد). الإحصائيات لا
-/// تُستدعى إطلاقاً للمباريات التي لم تبدأ بعد — لا توجد إحصائيات لها.
+/// getMatchStats)، بما فيها الجولة وحكم المباراة (يُستخرجان الآن من
+/// نفس استجابة /fixtures بدون أي طلب API إضافي). لا يوجد هنا أي عنصر
+/// يحتاج طلب API إضافي غير مُستخدَم أصلاً — لا تبويب ترتيب، ولا تشكيلة
+/// متوقعة، ولا هدافين، ولا قنوات ناقلة/معلقين (هذي البيانات غير متوفرة
+/// في API-Football أصلاً وتحتاج إدخال يدوي من لوحة تحكم لا توجد بعد).
+/// الإحصائيات لا تُستدعى إطلاقاً للمباريات التي لم تبدأ بعد — لا توجد
+/// إحصائيات لها.
 class MatchDetailsScreen extends StatefulWidget {
   final MatchModel match;
   const MatchDetailsScreen({super.key, required this.match});
@@ -245,12 +247,9 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
   }
 
   // -------------------------------------------------------------------
-  // معلومات اللقاء: فقط الحقول المتوفرة فعلياً في MatchModel (البطولة،
-  // الملعب إن وُجد، وقت المباراة، تاريخ المباراة). لا "الجولة" ولا
-  // "حكم المباراة" لأنهما غير مستخرَجين حالياً من استجابة API-Football
-  // في normalizeFixture — يمكن إضافتهما لاحقاً بدون أي طلب API إضافي
-  // (الحقلان موجودان أصلاً في نفس استجابة /fixtures: league.round و
-  // fixture.referee) إن رغبت بذلك.
+  // معلومات اللقاء: البطولة، الجولة وحكم المباراة (إن توفّرا من المصدر —
+  // مستخرَجان الآن في normalizeFixture من نفس استجابة /fixtures بدون أي
+  // طلب API إضافي)، الملعب إن وُجد، وقت المباراة، تاريخ المباراة.
   // -------------------------------------------------------------------
   Widget _buildMatchInfoCard(BuildContext context, MatchModel match) {
     final rows = <Widget>[
@@ -261,8 +260,16 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
       ),
     ];
 
+    if (match.round != null && match.round!.trim().isNotEmpty) {
+      rows.add(_infoRow(label: 'الجولة', value: _formatRound(match.round!)));
+    }
+
     if (match.venue != null && match.venue!.trim().isNotEmpty) {
       rows.add(_infoRow(label: 'ملعب المباراة', value: match.venue!));
+    }
+
+    if (match.referee != null && match.referee!.trim().isNotEmpty) {
+      rows.add(_infoRow(label: 'حكم المباراة', value: match.referee!));
     }
 
     rows.add(_infoRow(
@@ -320,6 +327,15 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
         ],
       ),
     );
+  }
+
+  /// يحوّل صيغة الجولة القادمة من API-Football (مثل "Regular Season - 2")
+  /// إلى "الجولة 2". أي صيغة أخرى غير معروفة (أدوار كأسية مثلاً) تُعرض
+  /// كما وردت من المصدر بدل إخفائها.
+  String _formatRound(String raw) {
+    final match = RegExp(r'-\s*(\d+)\s*$').firstMatch(raw);
+    if (match != null) return 'الجولة ${match.group(1)}';
+    return raw;
   }
 
   String _formatDate(DateTime dt) {
