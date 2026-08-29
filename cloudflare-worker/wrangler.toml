@@ -3,6 +3,9 @@ main = "src/index.js"
 compatibility_date = "2024-11-01"
 
 # مزامنة تلقائية كل ساعة — نفس دور syncMatchesHourly سابقاً.
+# اليوم الحالي يُحدَّث بكل تشغيل (كل ساعة)، والأيام الأخرى ضمن نافذة
+# -3..+3 تُحدَّث مرة واحدة فقط يومياً عند الساعة 0 UTC — راجع
+# runScheduledSync في src/index.js للتفاصيل.
 [triggers]
 crons = ["0 * * * *"]
 

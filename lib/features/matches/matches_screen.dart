@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import '../../core/data/football_ar_translations.dart';
 import '../../core/models/match_model.dart';
 import '../../core/services/matches_service.dart';
+import 'match_details_screen.dart';
 
 /// شاشة "النتائج": جدول مباريات كرة القدم (العربية والعالمية) ليوم واحد،
-/// مع إمكانية التنقل بين الأيام عبر سهمين. لا حاجة لأي إعداد إضافي —
-/// المصدر مجاني بالكامل.
+/// مع إمكانية التنقل بين الأيام عبر سهمين، ضمن نافذة 7 أيام (من 3 أيام
+/// ماضية إلى 3 أيام قادمة) — نفس النافذة التي يزامنها الووركر بـ
+/// Firestore، فلا داعي للسماح بالتنقل خارجها لأن البيانات لن تكون
+/// موجودة أصلاً. لا حاجة لأي إعداد إضافي — المصدر مجاني بالكامل.
 class MatchesScreen extends StatefulWidget {
   const MatchesScreen({super.key});
 
@@ -17,6 +20,9 @@ class _MatchesScreenState extends State<MatchesScreen> {
   // إزاحة الأيام عن اليوم الحالي: 0 = اليوم، 1 = غداً، -1 = أمس ...
   int _dayOffset = 0;
   late Future<List<MatchModel>> _future;
+
+  static const int _minDayOffset = -3;
+  static const int _maxDayOffset = 3;
 
   static const _weekdaysAr = [
     'الاثنين',
@@ -40,8 +46,10 @@ class _MatchesScreenState extends State<MatchesScreen> {
   }
 
   void _changeDay(int delta) {
+    final next = _dayOffset + delta;
+    if (next < _minDayOffset || next > _maxDayOffset) return;
     setState(() {
-      _dayOffset += delta;
+      _dayOffset = next;
       _future = MatchesService.fetchMatches(_selectedDate);
     });
   }
@@ -111,7 +119,7 @@ class _MatchesScreenState extends State<MatchesScreen> {
           IconButton(
             tooltip: 'اليوم التالي',
             icon: const Icon(Icons.chevron_left),
-            onPressed: () => _changeDay(1),
+            onPressed: _dayOffset >= _maxDayOffset ? null : () => _changeDay(1),
           ),
           Text(
             _dayLabel,
@@ -123,7 +131,7 @@ class _MatchesScreenState extends State<MatchesScreen> {
           IconButton(
             tooltip: 'اليوم السابق',
             icon: const Icon(Icons.chevron_right),
-            onPressed: () => _changeDay(-1),
+            onPressed: _dayOffset <= _minDayOffset ? null : () => _changeDay(-1),
           ),
         ],
       ),
@@ -217,14 +225,24 @@ class _MatchTile extends StatelessWidget {
     final primary = Theme.of(context).colorScheme.primary;
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-        child: Row(
-          children: [
-            Expanded(child: _teamColumn(match.homeTeamEn, match.homeLogo)),
-            SizedBox(width: 76, child: _centerInfo(context, primary)),
-            Expanded(child: _teamColumn(match.awayTeamEn, match.awayLogo)),
-          ],
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => MatchDetailsScreen(match: match),
+            ),
+          );
+        },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+          child: Row(
+            children: [
+              Expanded(child: _teamColumn(match.homeTeamEn, match.homeLogo)),
+              SizedBox(width: 76, child: _centerInfo(context, primary)),
+              Expanded(child: _teamColumn(match.awayTeamEn, match.awayLogo)),
+            ],
+          ),
         ),
       ),
     );
