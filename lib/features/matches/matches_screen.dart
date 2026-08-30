@@ -73,7 +73,7 @@ class _MatchesScreenState extends State<MatchesScreen> {
     final picked = await showDatePicker(
       context: context,
       initialDate: _selectedDate,
-      firstDate: today.subtract(const Duration(days: _minDayOffset.abs())),
+      firstDate: today.subtract(const Duration(days: -_minDayOffset)),
       lastDate: today.add(const Duration(days: _maxDayOffset)),
       locale: const Locale('ar'),
     );
