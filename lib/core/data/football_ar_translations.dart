@@ -68,7 +68,8 @@ class FootballTranslations {
   /// يُستبعد بالكامل من شاشة النتائج بدل عرضه بالإنجليزية، لأن غالب الدوريات
   /// الصغيرة/المحلية غير المعروفة عالمياً (دوريات درجة ثانية وثالثة مثلاً)
   /// ليست ضمن اهتمام المستخدم أصلاً.
-  static bool isSupportedLeague(String en) => _leagues.containsKey(en.trim());
+  static bool isSupportedLeague(String en) =>
+      _leagues.containsKey(en.trim()) || _leaguesNormalized.containsKey(_normalize(en));
 
   /// ترتيب أولوية ظهور الدوريات في شاشة النتائج (الأصغر = يظهر أولاً).
   /// أي دوري غير مذكور هنا يظهر بعد كل هذي القائمة، بترتيب ورودها من المصدر.
@@ -385,9 +386,35 @@ class FootballTranslations {
     return '$hour12:$minute $suffix';
   }
 
-  static String league(String en) => _leagues[en.trim()] ?? en;
+  // مطابقة متساهلة: تتجاهل فروقات بسيطة (مسافات زائدة، حالة الأحرف،
+  // شرطة "-" بدل مسافة) بين اسم الفريق/الدوري القادم من API-Football
+  // والمفتاح المخزّن في القاموس أعلاه — كثير من حالات "اسم إنجليزي ظهر
+  // رغم وجود ترجمة له" سببها فرق شكلي بسيط في النص وليس غياب الترجمة
+  // فعلاً.
+  static String _normalize(String s) =>
+      s.trim().toLowerCase().replaceAll(RegExp(r'[\s\-]+'), ' ');
 
-  static String team(String en) => _teams[en.trim()] ?? en;
+  static final Map<String, String> _leaguesNormalized = {
+    for (final entry in _leagues.entries) _normalize(entry.key): entry.value,
+  };
+
+  static final Map<String, String> _teamsNormalized = {
+    for (final entry in _teams.entries) _normalize(entry.key): entry.value,
+  };
+
+  /// يجهّز نسخة مطبَّعة (normalized) من أي ترجمات إضافية، بنفس أسلوب
+  /// القاموسين الأساسيين أعلاه — يُستدعى من applyRemoteOverrides أدناه.
+  static void _mergeNormalized(Map<String, String> target, Map<String, String> extra) {
+    for (final entry in extra.entries) {
+      target[_normalize(entry.key)] = entry.value;
+    }
+  }
+
+  static String league(String en) =>
+      _leagues[en.trim()] ?? _leaguesNormalized[_normalize(en)] ?? en;
+
+  static String team(String en) =>
+      _teams[en.trim()] ?? _teamsNormalized[_normalize(en)] ?? en;
 
   /// يدمج ترجمات إضافية (مثلاً قادمة من Firestore) فوق القاموس المحلي —
   /// تُستخدم لاحقاً لو رُبط هذا الملف بمصدر أونلاين قابل للتعديل من لوحة
@@ -396,7 +423,13 @@ class FootballTranslations {
     Map<String, String>? leagues,
     Map<String, String>? teams,
   }) {
-    if (leagues != null) _leagues.addAll(leagues);
-    if (teams != null) _teams.addAll(teams);
+    if (leagues != null) {
+      _leagues.addAll(leagues);
+      _mergeNormalized(_leaguesNormalized, leagues);
+    }
+    if (teams != null) {
+      _teams.addAll(teams);
+      _mergeNormalized(_teamsNormalized, teams);
+    }
   }
 }

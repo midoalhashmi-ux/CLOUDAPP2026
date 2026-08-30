@@ -1,5 +1,6 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'core/services/favorites_service.dart';
 import 'core/services/app_settings_service.dart';
 import 'core/services/app_update_service.dart';
@@ -120,6 +121,16 @@ class SportsApp extends StatelessWidget {
           debugShowCheckedModeBanner: false,
           theme: snapshot.data?.toThemeData() ?? AppTheme.fallback,
           locale: const Locale('ar'),
+          // بدون هذين السطرين، MaterialApp لا يجد أي مندوب ترجمة (Delegate)
+          // مطابق للعربية فيرجع فعلياً للإنجليزية كلغة تحديد اتجاه فعلي، وهذا
+          // هو سبب ظهور الشاشة كاملة باتجاه LTR (من اليسار لليمين) رغم أن
+          // النصوص عربية — ومنه ظهور شعار/اسم الدوري يسار الشاشة بدل يمينها.
+          localizationsDelegates: const [
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: const [Locale('ar')],
           home: const _UpdateGate(),
         ),
       );
