@@ -255,7 +255,7 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
     final rows = <Widget>[
       _infoRow(
         label: 'البطولة',
-        value: FootballTranslations.league(match.leagueNameEn),
+        value: FootballTranslations.leagueWithCountry(match.leagueNameEn, match.leagueCountryEn),
         leadingImage: match.leagueLogo,
       ),
     ];

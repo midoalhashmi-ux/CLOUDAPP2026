@@ -4,6 +4,11 @@ enum MatchStatus { upcoming, live, finished, postponed }
 class MatchModel {
   final String id;
   final String leagueNameEn;
+  // اسم الدولة كما يرد من المصدر (بالإنجليزي) — ضروري لأن بعض أسماء
+  // الدوريات تتكرر بنفس الشكل بالضبط لأكثر من دولة (مثال: "Premier
+  // League" لمصر وإنجلترا معاً)، فلا يكفي الاعتماد على leagueNameEn وحده
+  // للتفريق أو الترجمة أو التجميع.
+  final String leagueCountryEn;
   final String? leagueLogo;
   final String homeTeamEn;
   final String awayTeamEn;
@@ -22,6 +27,7 @@ class MatchModel {
   MatchModel({
     required this.id,
     required this.leagueNameEn,
+    this.leagueCountryEn = '',
     this.leagueLogo,
     required this.homeTeamEn,
     required this.awayTeamEn,
@@ -84,6 +90,7 @@ class MatchModel {
     return MatchModel(
       id: (json['idEvent'] ?? '').toString(),
       leagueNameEn: (json['strLeague'] ?? '').toString(),
+      leagueCountryEn: (json['strLeagueCountry'] ?? '').toString(),
       leagueLogo: (json['strLeagueBadge'] as String?)?.trim().isNotEmpty == true
           ? json['strLeagueBadge']
           : null,

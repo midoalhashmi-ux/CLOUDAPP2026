@@ -80,12 +80,64 @@ class FootballTranslations {
     // القارية/الدولية الكبرى فقط، حسب الطلب.
   };
 
+  /// أسماء دوريات يرجعها API-Football **بنفس الشكل بالضبط لأكثر من دولة**
+  /// (بدون أي بادئة تميّزها) — أشهر مثال: مصر وإنجلترا كلاهما "Premier
+  /// League". بدون هذه الطبقة، القاموس العادي أعلاه كان يترجم أي "Premier
+  /// League" مباشرة للإنجليزي بغض النظر عن الدولة الحقيقية، فتظهر فرق
+  /// مصرية داخل مجموعة "الدوري الإنجليزي الممتاز".
+  ///
+  /// المفتاح الخارجي: اسم الدوري مُطبَّعاً (lowercase). المفتاح الداخلي:
+  /// اسم الدولة كما يرد من المصدر، مُطبَّعاً أيضاً.
+  /// أي دولة غير مذكورة هنا لاسم متضارب تُستبعد بالكامل من العرض (isSupportedLeague
+  /// يرجع false لها) — أسلم من عرضها بتصنيف قد يكون خاطئاً.
+  static final Map<String, Map<String, String>> _ambiguousLeaguesByCountry = {
+    'premier league': {
+      'england': 'الدوري الإنجليزي الممتاز',
+      'egypt': 'الدوري المصري الممتاز',
+    },
+    'serie a': {
+      'italy': 'الدوري الإيطالي',
+      'brazil': 'الدوري البرازيلي',
+    },
+    'bundesliga': {
+      'germany': 'الدوري الألماني',
+      'austria': 'الدوري النمساوي',
+    },
+  };
+
+  /// نفس مفاتيح `_ambiguousLeaguesByCountry` لكن مربوطة بمفتاح ترتيب
+  /// الأولوية المناسب في `_leaguePriorityOrder` (اسم/دولة) — يُستخدم فقط
+  /// داخل `leaguePriority` أدناه.
+  static String? _ambiguousPriorityKey(String normalizedLeague, String normalizedCountry) {
+    if (normalizedLeague == 'premier league') {
+      if (normalizedCountry == 'england') return 'English Premier League';
+      if (normalizedCountry == 'egypt') return 'Egyptian Premier League';
+    }
+    if (normalizedLeague == 'serie a' && normalizedCountry == 'italy') {
+      return 'Italian Serie A';
+    }
+    if (normalizedLeague == 'bundesliga' && normalizedCountry == 'germany') {
+      return 'German Bundesliga';
+    }
+    return null;
+  }
+
   /// الدوريات المدعومة فقط (عربية + عالمية معروفة) — أي دوري غير موجود هنا
   /// يُستبعد بالكامل من شاشة النتائج بدل عرضه بالإنجليزية، لأن غالب الدوريات
   /// الصغيرة/المحلية غير المعروفة عالمياً (دوريات درجة ثانية وثالثة مثلاً)
   /// ليست ضمن اهتمام المستخدم أصلاً.
-  static bool isSupportedLeague(String en) =>
-      _leagues.containsKey(en.trim()) || _leaguesNormalized.containsKey(_normalize(en));
+  ///
+  /// [countryEn] اختياري للتوافق مع الاستدعاءات القديمة، لكن يجب تمريره
+  /// دائماً من الآن فصاعداً حتى تُفلتَر أسماء الدوريات المتضاربة (راجع
+  /// `_ambiguousLeaguesByCountry`) بشكل صحيح حسب الدولة الفعلية.
+  static bool isSupportedLeague(String en, [String? countryEn]) {
+    final key = _normalize(en);
+    final byCountry = _ambiguousLeaguesByCountry[key];
+    if (byCountry != null) {
+      return byCountry.containsKey(_normalize(countryEn ?? ''));
+    }
+    return _leagues.containsKey(en.trim()) || _leaguesNormalized.containsKey(key);
+  }
 
   /// ترتيب أولوية ظهور الدوريات في شاشة النتائج (الأصغر = يظهر أولاً).
   /// أي دوري غير مذكور هنا يظهر بعد كل هذي القائمة، بترتيب ورودها من المصدر.
@@ -114,8 +166,9 @@ class FootballTranslations {
     'NPFL', 'Nigeria Professional Football League',
   ];
 
-  static int leaguePriority(String en) {
-    final index = _leaguePriorityOrder.indexOf(en.trim());
+  static int leaguePriority(String en, [String? countryEn]) {
+    final resolvedKey = _ambiguousPriorityKey(_normalize(en), _normalize(countryEn ?? '')) ?? en.trim();
+    final index = _leaguePriorityOrder.indexOf(resolvedKey);
     return index == -1 ? _leaguePriorityOrder.length : index;
   }
 
@@ -438,6 +491,19 @@ class FootballTranslations {
 
   static String league(String en) =>
       _leagues[en.trim()] ?? _leaguesNormalized[_normalize(en)] ?? en;
+
+  /// نفس `league` لكن يفكّ التضارب أولاً حسب الدولة إذا كان اسم الدوري
+  /// من ضمن `_ambiguousLeaguesByCountry` (مثال: "Premier League" لمصر
+  /// مقابل إنجلترا). استخدم هذه الدالة دائماً بدل `league` عند وجود
+  /// leagueCountryEn متاح (شاشة النتائج وتفاصيل المباراة).
+  static String leagueWithCountry(String en, String? countryEn) {
+    final key = _normalize(en);
+    final byCountry = _ambiguousLeaguesByCountry[key];
+    if (byCountry != null) {
+      return byCountry[_normalize(countryEn ?? '')] ?? en;
+    }
+    return league(en);
+  }
 
   static String team(String en) =>
       _teams[en.trim()] ?? _teamsNormalized[_normalize(en)] ?? en;

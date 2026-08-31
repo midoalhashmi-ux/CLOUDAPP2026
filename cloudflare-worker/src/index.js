@@ -132,6 +132,11 @@ function normalizeFixture(fx) {
   return {
     idEvent: String(fixture.id ?? ''),
     strLeague: league.name || '',
+    // API-Football يرجّع أحياناً نفس اسم الدوري بالضبط لأكثر من دولة
+    // (مثال: مصر وإنجلترا كلاهما "Premier League" بدون أي بادئة تميّزهما).
+    // نخزّن اسم الدولة كحقل مستقل حتى يفرّق التطبيق بينهما عند العرض
+    // والتجميع، بدل الاعتماد على اسم الدوري وحده.
+    strLeagueCountry: league.country || '',
     strLeagueBadge: league.logo || null,
     strHomeTeam: (teams.home && teams.home.name) || '',
     strAwayTeam: (teams.away && teams.away.name) || '',
