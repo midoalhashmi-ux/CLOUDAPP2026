@@ -132,6 +132,11 @@ function normalizeFixture(fx) {
   return {
     idEvent: String(fixture.id ?? ''),
     strLeague: league.name || '',
+    // ناقص سابقاً — بدونه أي دوري بنفس الاسم بأكثر من دولة (Premier
+    // League إنجلترا/مصر، Serie A إيطاليا/البرازيل، Bundesliga
+    // ألمانيا/النمسا) يوصل للتطبيق بدولة فاضية، فتستبعده isSupportedLeague
+    // بالكامل ظناً منه أن التصنيف غير مؤكد.
+    strLeagueCountry: league.country || '',
     strLeagueBadge: league.logo || null,
     strHomeTeam: (teams.home && teams.home.name) || '',
     strAwayTeam: (teams.away && teams.away.name) || '',

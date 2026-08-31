@@ -200,7 +200,8 @@ class _MatchesScreenState extends State<MatchesScreen> {
                 // مباريات" ونتائج البحث/الفلترة القائمة المعروضة فعلاً
                 // للمستخدم لا القائمة الخام القادمة من المصدر.
                 final allMatches = (snapshot.data ?? [])
-                    .where((m) => FootballTranslations.isSupportedLeague(m.leagueNameEn))
+                    .where((m) => FootballTranslations.isSupportedLeague(
+                        m.leagueNameEn, m.leagueCountryEn))
                     .toList();
                 final matches = _applyFilters(allMatches);
                 if (matches.isEmpty) {
@@ -391,23 +392,32 @@ class _MatchesScreenState extends State<MatchesScreen> {
   Widget _buildMatchesList(BuildContext context, List<MatchModel> matches) {
     // التصفية حسب الدرجة (isSupportedLeague) طُبّقت مسبقاً في build() قبل
     // الوصول لهذه الدالة — راجع الشرح هناك.
+    // المفتاح (اسم الدوري + الدولة) لا الاسم وحده — بعض الأسماء تتكرر
+    // بنفس الشكل بالضبط لأكثر من دولة (راجع الشرح في isSupportedLeague).
     final grouped = <String, List<MatchModel>>{};
     for (final match in matches) {
-      grouped.putIfAbsent(match.leagueNameEn, () => []).add(match);
+      final key = '${match.leagueNameEn}|${match.leagueCountryEn}';
+      grouped.putIfAbsent(key, () => []).add(match);
     }
 
     // ترتيب الدوريات حسب الأولوية (الأكثر شعبية أولاً: الإنجليزي، السعودي،
     // الإسباني...) بدل ترتيب ورودها العشوائي من المصدر.
-    final leagues = grouped.keys.toList()
-      ..sort((a, b) => FootballTranslations.leaguePriority(a)
-          .compareTo(FootballTranslations.leaguePriority(b)));
+    final leagueKeys = grouped.keys.toList()
+      ..sort((a, b) {
+        final matchA = grouped[a]!.first;
+        final matchB = grouped[b]!.first;
+        return FootballTranslations
+            .leaguePriority(matchA.leagueNameEn, matchA.leagueCountryEn)
+            .compareTo(FootballTranslations.leaguePriority(
+                matchB.leagueNameEn, matchB.leagueCountryEn));
+      });
 
     return ListView.builder(
       padding: const EdgeInsets.only(bottom: 24),
-      itemCount: leagues.length,
+      itemCount: leagueKeys.length,
       itemBuilder: (context, index) {
-        final leagueEn = leagues[index];
-        final leagueMatches = grouped[leagueEn]!;
+        final leagueKey = leagueKeys[index];
+        final leagueMatches = grouped[leagueKey]!;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -427,7 +437,9 @@ class _MatchesScreenState extends State<MatchesScreen> {
                     ),
                   Expanded(
                     child: Text(
-                      FootballTranslations.league(leagueEn),
+                      FootballTranslations.leagueWithCountry(
+                          leagueMatches.first.leagueNameEn,
+                          leagueMatches.first.leagueCountryEn),
                       style: const TextStyle(
                           fontWeight: FontWeight.bold, color: Colors.white70),
                     ),
