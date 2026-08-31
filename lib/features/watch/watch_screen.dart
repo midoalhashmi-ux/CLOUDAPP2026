@@ -30,10 +30,6 @@ class _WatchScreenState extends State<WatchScreen> {
       _error = null;
     });
 
-    // TODO(مرحلة لاحقة): هذا حالياً يعتمد على Cloud Function غير مفعّلة بعد
-    // (تحتاج Blaze Plan). حالياً السطر أدناه سيفشل بأمان ويعرض رسالة خطأ
-    // واضحة بدل ما يكسر التطبيق، وبمجرد تفعيل الفنكشن سيعمل تلقائياً بدون
-    // أي تعديل على هذا الملف.
     final url =
         await SecureStreamService.getTemporaryStreamUrl(widget.channel.id);
 
