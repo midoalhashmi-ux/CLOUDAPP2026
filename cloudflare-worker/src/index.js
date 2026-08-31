@@ -100,6 +100,8 @@ const ALLOWED_LEAGUE_NAMES = new Set([
   'world cup qualification afc', 'world cup - qualification asia',
   'africa cup of nations',
   'afc asian cup',
+  'premier soccer league', 'betway premiership',
+  'npfl', 'nigeria professional football league',
   'fa cup', 'copa del rey', 'coppa italia', 'dfb pokal', 'dfb-pokal',
   'coupe de france', 'efl cup', 'carabao cup',
 ]);
@@ -130,11 +132,6 @@ function normalizeFixture(fx) {
   return {
     idEvent: String(fixture.id ?? ''),
     strLeague: league.name || '',
-    // API-Football يرجّع أحياناً نفس اسم الدوري بالضبط لأكثر من دولة
-    // (مثال: مصر وإنجلترا كلاهما "Premier League" بدون أي بادئة تميّزهما).
-    // نخزّن اسم الدولة كحقل مستقل حتى يفرّق التطبيق بينهما عند العرض
-    // والتجميع، بدل الاعتماد على اسم الدوري وحده.
-    strLeagueCountry: league.country || '',
     strLeagueBadge: league.logo || null,
     strHomeTeam: (teams.home && teams.home.name) || '',
     strAwayTeam: (teams.away && teams.away.name) || '',
@@ -186,16 +183,35 @@ async function fetchAndStoreFixtures(env, dateStr, { finalize = false } = {}) {
   //      (درجة أولى فقط من الدوريات/الكؤوس المطلوبة).
   //   2) شعارات كاملة — الدوريات المسموحة نفسها نادراً ما ينقصها شعار،
   //      لكن نُبقي الفحص احتياطاً لمنع أي صورة مكسورة.
-  const events = allEvents.filter((event) =>
-    isAllowedLeague(event.strLeague) &&
-    event.strHomeTeamBadge && event.strAwayTeamBadge && event.strLeagueBadge,
-  );
+  const events = [];
+  let excludedLeagueCount = 0;
+  let excludedBadgeCount = 0;
+  const excludedLeagueSample = new Set();
+
+  for (const event of allEvents) {
+    if (!isAllowedLeague(event.strLeague)) {
+      excludedLeagueCount++;
+      if (excludedLeagueSample.size < 15) excludedLeagueSample.add(event.strLeague);
+      continue;
+    }
+    if (!(event.strHomeTeamBadge && event.strAwayTeamBadge && event.strLeagueBadge)) {
+      excludedBadgeCount++;
+      continue;
+    }
+    events.push(event);
+  }
 
   await setDoc(env, `matches_daily/${dateStr}`, {
     events,
     updatedAt: new Date(),
     source: 'api-football',
     rawResultsCount: allEvents.length,
+    // تشخيص مؤقت: يوضح سبب استبعاد كل مباراة لم تظهر في القائمة النهائية،
+    // بدل التخمين. excludedLeagueSample أسماء دوريات فعلية من المصدر لم
+    // تُطابق isAllowedLeague — تفيد لو الاسم مختلف عمّا هو متوقع بالقائمة.
+    debugExcludedByLeague: excludedLeagueCount,
+    debugExcludedByBadge: excludedBadgeCount,
+    debugExcludedLeagueSample: Array.from(excludedLeagueSample),
     // finalized = true يعني "يوم ماضٍ اكتملت نتائجه ولن يُعاد جلبه مرة
     // أخرى" — هذا هو أساس توفير حصة API-Football عند تفعيل نافذة الأيام
     // الماضية (راجع runScheduledSync أدناه).
