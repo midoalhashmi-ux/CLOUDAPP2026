@@ -100,8 +100,6 @@ const ALLOWED_LEAGUE_NAMES = new Set([
   'world cup qualification afc', 'world cup - qualification asia',
   'africa cup of nations',
   'afc asian cup',
-  'premier soccer league', 'betway premiership',
-  'npfl', 'nigeria professional football league',
   'fa cup', 'copa del rey', 'coppa italia', 'dfb pokal', 'dfb-pokal',
   'coupe de france', 'efl cup', 'carabao cup',
 ]);

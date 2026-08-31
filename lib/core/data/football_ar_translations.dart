@@ -40,11 +40,10 @@ class FootballTranslations {
     'Africa Cup of Nations': 'كأس الأمم الأفريقية',
     'AFC Asian Cup': 'كأس آسيا',
 
-    // أفريقيا (الأشهر خارج الدول العربية) — درجة أولى فقط.
-    'Premier Soccer League': 'الدوري الجنوب أفريقي الممتاز',
-    'Betway Premiership': 'الدوري الجنوب أفريقي الممتاز',
-    'NPFL': 'الدوري النيجيري الممتاز',
-    'Nigeria Professional Football League': 'الدوري النيجيري الممتاز',
+    // ملاحظة: أفريقيا مقصورة عمداً على الدول الناطقة بالعربية (مصر،
+    // المغرب، تونس، الجزائر) + البطولتين القاريتين (أبطال أفريقيا
+    // والكونفدرالية) — أي دوري أفريقي آخر (جنوب أفريقيا، نيجيريا...)
+    // مُستبعد عمداً حسب طلب المستخدم، وليس نسياناً.
 
     // كؤوس محلية مشهورة (الدول الخمس الكبرى + كأس الملك السعودي) — تمت
     // إضافتها بناءً على طلب المستخدم، رغم أنها كانت مستبعدة عمداً سابقاً.
@@ -139,31 +138,54 @@ class FootballTranslations {
     return _leagues.containsKey(en.trim()) || _leaguesNormalized.containsKey(key);
   }
 
-  /// ترتيب أولوية ظهور الدوريات في شاشة النتائج (الأصغر = يظهر أولاً).
-  /// أي دوري غير مذكور هنا يظهر بعد كل هذي القائمة، بترتيب ورودها من المصدر.
+  /// ترتيب أولوية ظهور الدوريات في شاشة النتائج (الأصغر = يظهر أولاً)،
+  /// تنازلياً من الأكثر أهمية/شعبية إلى الأقل. أي دوري غير مذكور هنا يظهر
+  /// بعد كل هذي القائمة، بترتيب ورودها من المصدر.
+  ///
+  /// ملاحظة مقصودة: الدوريات الأفريقية (المصري والمغربي والجزائري
+  /// والتونسي + البطولتين القاريتين) مُتعمَّد وضعها في آخر القائمة —
+  /// طلب صريح من المستخدم، وليس ترتيباً تلقائياً بحت.
   static const List<String> _leaguePriorityOrder = [
+    // الدوري الإنجليزي، ثم السعودي (الجمهور الأساسي للتطبيق).
     'Premier League', 'English Premier League',
     'Saudi Pro League', 'Saudi Professional League',
+    'Saudi King Cup',
+
+    // بقية الدوريات الأوروبية الخمسة الكبرى + بطولاتها القارية.
     'La Liga', 'Spanish La Liga',
     'UEFA Champions League',
     'Serie A', 'Italian Serie A',
     'Bundesliga', 'German Bundesliga',
     'Ligue 1', 'French Ligue 1',
     'UEFA Europa League',
-    'Egyptian Premier League',
+    'UEFA Europa Conference League',
+
+    // البطولات الدولية الكبرى.
+    'FIFA World Cup', 'World Cup',
+    'FIFA Club World Cup', 'Club World Cup',
+
+    // كؤوس محلية أوروبية مشهورة.
+    'FA Cup', 'Copa del Rey', 'Coppa Italia', 'DFB Pokal', 'DFB-Pokal',
+    'Coupe de France', 'EFL Cup', 'Carabao Cup',
+
+    // الدوريات الآسيوية العربية + دوري أبطال آسيا.
     'AFC Champions League Elite', 'AFC Champions League',
     'Qatar Stars League',
     'UAE Pro League', 'UAE Arabian Gulf League',
     'Iraqi Premier League',
+    'Kuwaiti Premier League',
+    'AFC Asian Cup',
+    'World Cup Qualification AFC', 'World Cup - Qualification Asia',
+
+    // الدوريات الأفريقية الناطقة بالعربية + بطولات القارة الأفريقية —
+    // مُتعمَّد وضعها هنا في الأسفل (انظر الملاحظة أعلاه).
+    'Egyptian Premier League',
     'Moroccan Botola Pro',
     'Algerian Ligue Professionnelle 1',
     'Tunisian Ligue 1',
-    'Kuwaiti Premier League',
-    'FA Cup', 'Copa del Rey', 'Coppa Italia', 'DFB Pokal', 'DFB-Pokal',
-    'Coupe de France', 'EFL Cup', 'Carabao Cup', 'Saudi King Cup',
     'CAF Champions League', 'CAF Confederation Cup',
-    'Premier Soccer League', 'Betway Premiership',
-    'NPFL', 'Nigeria Professional Football League',
+    'Africa Cup of Nations',
+    'World Cup Qualification CAF', 'World Cup - Qualification Africa',
   ];
 
   static int leaguePriority(String en, [String? countryEn]) {
