@@ -155,7 +155,7 @@ function normalizeFixture(fx) {
   };
 }
 
-async function fetchAndStoreFixtures(env, dateStr, { finalize = false } = {}) {
+async function fetchFixturesOnce(env, dateStr) {
   const response = await fetch(
       `https://v3.football.api-sports.io/fixtures?date=${dateStr}`,
       { headers: { 'x-apisports-key': env.API_FOOTBALL_KEY } },
@@ -179,7 +179,29 @@ async function fetchAndStoreFixtures(env, dateStr, { finalize = false } = {}) {
     throw new Error(`API-Football رجّع خطأ: ${JSON.stringify(apiErrors)}`);
   }
 
-  const allEvents = (body.response || []).map(normalizeFixture);
+  return (body.response || []).map(normalizeFixture);
+}
+
+async function fetchAndStoreFixtures(env, dateStr, { finalize = false, retryOnEmpty = false } = {}) {
+  let allEvents = await fetchFixturesOnce(env, dateStr);
+
+  // السبب الفعلي وراء "الساعة 6 = صفر، الساعة 7 = 300، الساعة 8 = صفر...":
+  // API-Football نفسه يرجّع أحياناً استجابة فارغة تماماً لطلب سليم 100%
+  // (بدون أي خطأ HTTP ولا خطأ داخل body.errors) ثم يرجّع النتائج الصحيحة
+  // فوراً عند إعادة نفس الطلب بعد ثوانٍ — وهذا ما كان يفسّر لماذا "مزامنة
+  // الآن" اليدوية كانت تُصلح الوضع فوراً بعد ظهوره فارغاً تلقائياً. الحل:
+  // إعادة محاولة واحدة بعد مهلة قصيرة قبل اعتماد نتيجة فارغة، فقط أثناء
+  // المزامنة التلقائية غير المراقَبة (retryOnEmpty=true) حيث لا يوجد
+  // مستخدم ينتظر الرد فوراً كما في زر "مزامنة الآن" اليدوي.
+  if (allEvents.length === 0 && retryOnEmpty) {
+    await new Promise((resolve) => setTimeout(resolve, 8000));
+    try {
+      allEvents = await fetchFixturesOnce(env, dateStr);
+    } catch (_) {
+      // تجاهل فشل إعادة المحاولة — نكمل بالنتيجة الفارغة الأصلية ونطبّق
+      // حماية "عدم الكتابة فوق بيانات جيدة سابقة" أدناه.
+    }
+  }
 
   // الطلب بدون أي تصفية يرجّع مئات المباريات يومياً (كل درجات ودوريات
   // العالم، حتى الدرجات الهاوية والشبابية المغمورة والدول غير المطلوبة).
@@ -204,6 +226,26 @@ async function fetchAndStoreFixtures(env, dateStr, { finalize = false } = {}) {
       continue;
     }
     events.push(event);
+  }
+
+  // حماية إضافية: إن رجعت هذه المزامنة بصفر مباراة رغم إعادة المحاولة،
+  // ولدينا فعلاً بيانات جيدة مخزّنة سابقاً لنفس اليوم، لا نمسحها بصفر —
+  // على الأرجح هذه استجابة مؤقتة من API-Football وليست حقيقة "لا مباريات
+  // اليوم". نُحدّث updatedAt فقط ليعكس وقت آخر محاولة، ونُبقي المباريات
+  // كما هي حتى المزامنة التالية.
+  if (events.length === 0 && retryOnEmpty) {
+    const existing = await getDoc(env, `matches_daily/${dateStr}`);
+    if (existing && Array.isArray(existing.events) && existing.events.length > 0) {
+      await setDoc(env, `matches_daily/${dateStr}`, {
+        ...existing,
+        updatedAt: new Date(),
+      });
+      return {
+        count: existing.events.length,
+        rawCount: existing.rawResultsCount ?? existing.events.length,
+        keptExisting: true,
+      };
+    }
   }
 
   await setDoc(env, `matches_daily/${dateStr}`, {
@@ -254,7 +296,17 @@ function dateKeyOffset(offsetDays) {
 // يومياً (3 أيام قادمة + يوم ماضٍ واحد جديد) ≈ 28 طلب/يوم، بدل 168 لو
 // جُلبت كل الأيام السبعة كل ساعة.
 async function runScheduledSync(env) {
-  await fetchAndStoreFixtures(env, dateKeyOffset(0));
+  try {
+    // retryOnEmpty: true — هذه هي المزامنة التلقائية غير المراقَبة، فمن
+    // الأفضل تحمّل ثانية إضافية لإعادة محاولة عند استجابة فارغة بدل تخزين
+    // "0 مباراة" خاطئة قد تبقى ظاهرة للمستخدمين ساعة كاملة حتى المزامنة
+    // التالية.
+    await fetchAndStoreFixtures(env, dateKeyOffset(0), { retryOnEmpty: true });
+  } catch (_) {
+    // فشل مزامنة اليوم لا يجب أن يمنع محاولة مزامنة الأيام القادمة/الماضية
+    // أدناه (كانت سابقاً تتوقف بالكامل لأن هذا الاستدعاء لم يكن ضمن try/catch،
+    // فأي خطأ عابر بمصدر البيانات كان يُسقط التشغيل كله لتلك الساعة).
+  }
 
   const hour = new Date().getUTCHours();
 
@@ -272,7 +324,7 @@ async function runScheduledSync(env) {
     try {
       const existing = await getDoc(env, `matches_daily/${dateStr}`);
       if (!existing || hour === 0) {
-        await fetchAndStoreFixtures(env, dateStr);
+        await fetchAndStoreFixtures(env, dateStr, { retryOnEmpty: true });
       }
     } catch (_) {
       // تجاهل فشل يوم قادم واحد، لا نوقف بقية المزامنة بسببه.
@@ -285,7 +337,7 @@ async function runScheduledSync(env) {
       const existing = await getDoc(env, `matches_daily/${dateStr}`);
       if (existing && existing.finalized === true) continue;
       if (!existing || hour === 0) {
-        await fetchAndStoreFixtures(env, dateStr, { finalize: true });
+        await fetchAndStoreFixtures(env, dateStr, { finalize: true, retryOnEmpty: true });
       }
     } catch (_) {
       // نفس الشيء — يوم ماضٍ واحد يفشل لا يوقف البقية، وسيُعاد المحاولة
@@ -316,7 +368,7 @@ async function handleRefreshMatches(request, env) {
     for (const offset of [-3, -2, -1, 0, 1, 2, 3]) {
       const dateStr = dateKeyOffset(offset);
       try {
-        results[dateStr] = await fetchAndStoreFixtures(env, dateStr, { finalize: offset < 0 });
+        results[dateStr] = await fetchAndStoreFixtures(env, dateStr, { finalize: offset < 0, retryOnEmpty: true });
       } catch (error) {
         results[dateStr] = `error: ${String(error && error.message || error)}`;
       }
@@ -326,7 +378,7 @@ async function handleRefreshMatches(request, env) {
 
   const dateStr = body.date || todayDateKey();
   try {
-    const { count, rawCount } = await fetchAndStoreFixtures(env, dateStr);
+    const { count, rawCount } = await fetchAndStoreFixtures(env, dateStr, { retryOnEmpty: true });
     return json({ ok: true, count, rawCount, date: dateStr });
   } catch (error) {
     return json({ ok: false, message: String(error && error.message || error) }, 500);
