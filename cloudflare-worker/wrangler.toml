@@ -18,4 +18,5 @@ FIREBASE_PROJECT_ID = "sports-stream-app-36a7a"
 #   GCP_SERVICE_ACCOUNT_EMAIL
 #   GCP_SERVICE_ACCOUNT_PRIVATE_KEY
 #   ADMIN_SYNC_SECRET
+#   HLS_TOKEN_SECRET   (جديد — لتوقيع/التحقق من روابط بث HLS الموقّتة)
 # راجع README.md بنفس هذا المجلد للخطوات كاملة.

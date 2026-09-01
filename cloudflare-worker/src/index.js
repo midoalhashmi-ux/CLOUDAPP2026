@@ -1,4 +1,11 @@
 import { getDoc, setDoc } from './firestore.js';
+import {
+  HLS_TOKEN_TTL_SECONDS,
+  signHlsToken,
+  verifyHlsToken,
+  buildHlsPlaybackUrl,
+  rewriteHlsPlaylist,
+} from './hls.js';
 
 // ============================================================================
 // بديل Firebase Cloud Functions لهذا المشروع — يعمل على Cloudflare Workers،
@@ -63,7 +70,71 @@ async function handleGetStreamUrl(request, env) {
     return json({ error: 'not-found', message: 'رابط البث لهذه القناة غير مضبوط.' }, 404);
   }
 
-  return json({ url, expiresIn: 60 * 60 * 4 });
+  // بدل إرجاع رابط المصدر الحقيقي مباشرة (كان يبقى صالحاً 4 ساعات كاملة
+  // ومكشوفاً بالكامل لأي حد يعترض الطلب أو يفحص التطبيق) — نرجّع رابط
+  // موقّت يمر عبر هذا الـ Worker نفسه (بروكسي)، فرابط privateStreams
+  // الحقيقي ما يوصل لجهاز المستخدم إطلاقاً ولا حتى لحظة واحدة.
+  const requestUrl = new URL(request.url);
+  const exp = Math.floor(Date.now() / 1000) + HLS_TOKEN_TTL_SECONDS;
+  const sig = await signHlsToken(env, channelId, exp);
+  const playbackUrl = buildHlsPlaybackUrl(requestUrl.origin, channelId, exp, sig);
+
+  return json({ url: playbackUrl, kind: 'hls', expiresIn: HLS_TOKEN_TTL_SECONDS });
+}
+
+// ---------------------------------------------------------------------------
+// 1.5) بروكسي بث HLS — يتحقق من التوكن، يجيب من المصدر الحقيقي (بدون
+//      كشفه)، ويعيد كتابة الـ m3u8 ليمر كل segment عبر نفس الـ Worker.
+// ---------------------------------------------------------------------------
+async function handleHlsProxy(request, env, channelId, file) {
+  const requestUrl = new URL(request.url);
+  const exp = requestUrl.searchParams.get('exp');
+  const sig = requestUrl.searchParams.get('sig');
+
+  const valid = await verifyHlsToken(env, channelId, exp, sig);
+  if (!valid) {
+    return json({ error: 'invalid-token', message: 'رابط غير صالح أو منتهي.' }, 403);
+  }
+
+  const streamDoc = await getDoc(env, `privateStreams/${channelId}`);
+  const originUrl = streamDoc && streamDoc.url;
+  if (!originUrl || typeof originUrl !== 'string') {
+    return json({ error: 'not-found', message: 'رابط البث لهذه القناة غير مضبوط.' }, 404);
+  }
+
+  // نفترض إن originUrl هو رابط ملف m3u8 الرئيسي؛ باقي الملفات (segments)
+  // تُبنى بنفس مجلد المصدر مع اسم الملف المطلوب.
+  const originBase = originUrl.substring(0, originUrl.lastIndexOf('/'));
+  const targetUrl = file === 'playlist.m3u8' ? originUrl : `${originBase}/${file}`;
+
+  const originResponse = await fetch(targetUrl, {
+    headers: { 'user-agent': 'Mozilla/5.0' },
+  });
+
+  if (!originResponse.ok) {
+    return json({ error: 'origin-fetch-failed', message: 'تعذر الوصول لمصدر البث.' }, 502);
+  }
+
+  if (file.endsWith('.m3u8')) {
+    const text = await originResponse.text();
+    const rewritten = rewriteHlsPlaylist(text, channelId, exp, sig, requestUrl.origin);
+    return new Response(rewritten, {
+      headers: {
+        'content-type': 'application/vnd.apple.mpegurl',
+        'cache-control': 'no-store',
+        ...CORS_HEADERS,
+      },
+    });
+  }
+
+  // segments (.ts / .m4s) تُبثّ كما هي مباشرة بدون تحميلها كاملة بالذاكرة
+  return new Response(originResponse.body, {
+    headers: {
+      'content-type': originResponse.headers.get('content-type') || 'video/mp2t',
+      'cache-control': 'no-store',
+      ...CORS_HEADERS,
+    },
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -587,6 +658,12 @@ export default {
 
     if (request.method === 'POST' && url.pathname === '/getPreMatchInfo') {
       return handleGetPreMatchInfo(request, env);
+    }
+
+    const hlsMatch = request.method === 'GET' && url.pathname.match(/^\/hls\/([^/]+)\/(.+)$/);
+    if (hlsMatch) {
+      const [, channelId, file] = hlsMatch;
+      return handleHlsProxy(request, env, channelId, file);
     }
 
     return json({ error: 'not-found', message: 'مسار غير معروف.' }, 404);
