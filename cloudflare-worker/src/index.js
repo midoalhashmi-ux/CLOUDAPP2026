@@ -65,7 +65,39 @@ async function handleGetStreamUrl(request, env) {
     return json({ error: 'not-found', message: 'لم يتم تسجيل مصدر بث لهذه القناة بعد.' }, 404);
   }
 
-  const url = streamDoc.url;
+  // لو القناة مربوطة برابط API خارجي (مثل سكربتات جلب الروابط اللحظية)،
+  // نجيب الرابط الحقيقي "حي" من نفس هذا الـ API عند كل طلب مشاهدة فعلي —
+  // بدل الاعتماد على رابط مخزَّن قديم قد يكون انتهى. لو الجلب الحي فشل
+  // (السيرفر الخارجي واقف، أو رجّع شكل غير متوقع)، نرجع لآخر رابط ناجح
+  // محفوظ في privateStreams.url بدل ما تنقطع المشاهدة بالكامل.
+  let url = streamDoc.url;
+  if (streamDoc.apiUrl && typeof streamDoc.apiUrl === 'string') {
+    try {
+      const liveResponse = await fetch(streamDoc.apiUrl, {
+        headers: {
+          'User-Agent': 'okhttp/4.12.0',
+          'Accept': 'application/json',
+        },
+      });
+      if (liveResponse.ok) {
+        const liveBody = await liveResponse.json();
+        if (liveBody && typeof liveBody.url === 'string' && liveBody.url) {
+          url = liveBody.url;
+          // نخزّن آخر رابط ناجح كنسخة احتياطية (fallback)، وننتظر اكتمال
+          // الحفظ (لا fire-and-forget) لأن /hls (بروكسي التشغيل الفعلي)
+          // يقرأ نفس هذا الحقل بعد لحظات — لازم يجده محدَّثاً فوراً.
+          await setDoc(env, `privateStreams/${channelId}`, {
+            url,
+            apiUrl: streamDoc.apiUrl,
+            updatedAt: new Date().toISOString(),
+          }).catch(() => {});
+        }
+      }
+    } catch (_) {
+      // نتجاهل الخطأ ونكمل بالرابط المخزَّن (url) كنسخة احتياطية أدناه.
+    }
+  }
+
   if (!url || typeof url !== 'string') {
     return json({ error: 'not-found', message: 'رابط البث لهذه القناة غير مضبوط.' }, 404);
   }
